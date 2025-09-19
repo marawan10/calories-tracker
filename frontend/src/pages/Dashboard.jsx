@@ -116,7 +116,9 @@ export default function Dashboard() {
 
   // Week series calculation (moved to top level with other hooks)
   const weekSeries = useMemo(() => {
-    if (!weekly) return { labels: [], datasets: [] }
+    if (!weekly || !weekly.dailyData || !Array.isArray(weekly.dailyData)) {
+      return { labels: [], datasets: [] }
+    }
     
     // Get current week range (Saturday to Friday)
     const { start, end } = getCurrentWeekRange()
