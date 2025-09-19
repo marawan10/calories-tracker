@@ -1109,6 +1109,133 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Update meal (PUT /api/meals/:id)
+    if (method === 'PUT' && path.startsWith('/api/meals/')) {
+      const mealId = path.split('/')[3];
+      
+      console.log('=== PUT /api/meals/:id START ===');
+      console.log('Meal ID:', mealId);
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('No authorization header found');
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          console.log('User not found for token');
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+        console.log('User authenticated:', user.email);
+      } catch (error) {
+        console.log('Token verification failed:', error.message);
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      try {
+        // Find the meal to update
+        const existingMeal = await Meal.findById(mealId);
+        if (!existingMeal) {
+          return res.status(404).json({ message: 'Meal not found' });
+        }
+
+        // Check if user owns this meal
+        if (!existingMeal.user.equals(user._id)) {
+          return res.status(403).json({ message: 'Access denied. You can only update your own meals.' });
+        }
+
+        const { date, mealType, items, notes } = req.body;
+        console.log('Parsed data:', { date, mealType, items, notes });
+
+        // Validation
+        if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
+          console.log('Validation failed - missing required fields');
+          return res.status(400).json({ 
+            message: 'Meal type and items are required' 
+          });
+        }
+
+        if (!['breakfast', 'lunch', 'dinner', 'snack'].includes(mealType)) {
+          console.log('Validation failed - invalid meal type:', mealType);
+          return res.status(400).json({ 
+            message: 'Invalid meal type. Must be breakfast, lunch, dinner, or snack' 
+          });
+        }
+
+        // Validate and calculate nutrition for each item
+        const processedItems = [];
+        
+        for (const item of items) {
+          console.log('Processing item:', { foodId: item.food, weight: item.weight });
+          
+          const food = await Food.findById(item.food);
+          
+          if (!food) {
+            console.error('Food not found:', item.food);
+            return res.status(400).json({
+              message: `Food with ID ${item.food} not found`
+            });
+          }
+
+          console.log('Found food:', { name: food.name, nameAr: food.nameAr, servingSize: food.servingSize });
+
+          // Check if user can access this food
+          if (!food.isPublic && !food.createdBy.equals(user._id)) {
+            return res.status(403).json({
+              message: `Access denied to food: ${food.name}`
+            });
+          }
+
+          try {
+            // Calculate nutrition for the specified weight
+            const nutrition = food.calculateNutrition(item.weight);
+            console.log('Calculated nutrition:', nutrition);
+            
+            processedItems.push({
+              food: food._id,
+              weight: item.weight,
+              nutrition
+            });
+          } catch (error) {
+            console.error('Error calculating nutrition:', error);
+            return res.status(500).json({
+              message: `Error calculating nutrition for ${food.name}`,
+              error: error.message
+            });
+          }
+        }
+
+        // Update meal
+        if (date) existingMeal.date = new Date(date);
+        existingMeal.mealType = mealType;
+        existingMeal.items = processedItems;
+        existingMeal.notes = notes;
+
+        await existingMeal.save();
+        
+        // Populate food details for response
+        await existingMeal.populate('items.food', 'name nameAr category nutrition');
+
+        res.json({
+          message: 'Meal updated successfully',
+          meal: existingMeal
+        });
+
+      } catch (error) {
+        console.error('PUT /api/meals/:id error:', error);
+        return res.status(500).json({
+          message: 'Server error while updating meal',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+      }
+    }
+
     // Delete meal (DELETE /api/meals/:id)
     if (method === 'DELETE' && path.startsWith('/api/meals/')) {
       const mealId = path.split('/')[3];
