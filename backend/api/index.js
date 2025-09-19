@@ -1,215 +1,110 @@
-const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// Import models first
-const User = require('../models/User');
-const Food = require('../models/Food');
+// User Schema (inline to avoid import issues)
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, maxlength: 50 },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true, minlength: 6 },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  profile: {
+    age: { type: Number, min: 1, max: 120 },
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    height: { type: Number, min: 50, max: 300 },
+    weight: { type: Number, min: 20, max: 500 },
+    activityLevel: { type: String, enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'], default: 'moderate' },
+    goal: { type: String, enum: ['lose_weight', 'maintain_weight', 'gain_weight'], default: 'maintain_weight' }
+  },
+  dailyGoals: {
+    calories: { type: Number, default: 2000 },
+    protein: { type: Number, default: 150 },
+    carbs: { type: Number, default: 250 },
+    fat: { type: Number, default: 65 }
+  },
+  preferences: {
+    language: { type: String, enum: ['en', 'ar'], default: 'en' },
+    units: { type: String, enum: ['metric', 'imperial'], default: 'metric' }
+  }
+}, { timestamps: true });
 
-// Import routes
-const authRoutes = require('../routes/auth');
-const foodRoutes = require('../routes/foods');
-const mealRoutes = require('../routes/meals');
-const userRoutes = require('../routes/users');
-const adminRoutes = require('../routes/admin');
-
-const app = express();
-
-// Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://calories-tracker-6oiu.vercel.app', 'https://kul-behesab.vercel.app'] 
-    : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
-}));
-// Increase body limits to support base64 avatars
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/foods', foodRoutes);
-app.use('/api/meals', mealRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/admin', adminRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    message: 'كُل بحساب API is running!', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
-    jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not Set'
-  });
-});
-
-// Debug endpoint to check admin user
-app.get('/api/debug/admin', async (req, res) => {
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
   try {
-    await connectToDatabase();
-    const adminUser = await User.findOne({ email: 'admin@gmail.com' });
-    res.json({
-      adminExists: !!adminUser,
-      adminData: adminUser ? {
-        id: adminUser._id,
-        email: adminUser.email,
-        role: adminUser.role,
-        hasPassword: !!adminUser.password
-      } : null
-    });
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'كُل بحساب API is running!', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+// Compare password method
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
-});
+// Remove password from JSON output
+userSchema.methods.toJSON = function() {
+  const user = this.toObject();
+  delete user.password;
+  return user;
+};
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+// Create model
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-// MongoDB connection
+// Database connection
 let isConnected = false;
 
-const connectToDatabase = async () => {
+async function connectToDatabase() {
   if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
 
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/kaloriApp';
-    
-    // Optimize connection for serverless
-    await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0, // Disable mongoose buffering
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 5, // Maintain a minimum of 5 socket connections
-    });
+    // Use the simplest connection possible
+    await mongoose.connect(process.env.MONGODB_URI);
     
     isConnected = true;
-    console.log(`✅ Connected to MongoDB: ${mongoUri}`);
+    console.log('✅ Connected to MongoDB');
     
-    // Seed initial data if needed (only run once)
-    if (!global.seedingComplete) {
-      await seedInitialFoods();
-      await ensureAdminUser();
-      global.seedingComplete = true;
+    // Create admin user if doesn't exist
+    if (!global.adminCreated) {
+      const adminExists = await User.findOne({ email: 'admin@gmail.com' });
+      if (!adminExists) {
+        const admin = new User({
+          name: 'Admin',
+          email: 'admin@gmail.com',
+          password: 'messi1010@',
+          role: 'admin',
+          profile: { age: 30 }
+        });
+        await admin.save();
+        console.log('👑 Admin user created');
+      }
+      global.adminCreated = true;
     }
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     isConnected = false;
     throw error;
   }
+}
+
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '7d' });
 };
 
-// Seed function: create admin user and 10 sample foods if collection is empty
-async function seedInitialFoods() {
-  try {
-    const count = await Food.countDocuments();
-    if (count > 0) return; // Already seeded
+// Validate email format
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
-    console.log('🌱 Seeding initial foods...');
-
-    // Ensure admin user exists for seeding
-    let adminUser = await User.findOne({ email: 'admin@gmail.com' });
-    if (!adminUser) {
-      adminUser = new User({
-        name: 'Admin',
-        email: 'admin@gmail.com',
-        password: 'messi1010@',
-        role: 'admin',
-        profile: { age: 30 }
-      });
-      await adminUser.save();
-      console.log('👑 Admin user created for seeding');
-    }
-
-    const foods = [
-      { name: 'Apple', calories: 52, protein: 0.3, carbs: 14, fat: 0.2 },
-      { name: 'Banana', calories: 96, protein: 1.3, carbs: 27, fat: 0.3 },
-      { name: 'Rice', calories: 130, protein: 2.7, carbs: 28, fat: 0.3 },
-      { name: 'Chicken breast', calories: 165, protein: 31, carbs: 0, fat: 3.6 },
-      { name: 'Egg', calories: 155, protein: 13, carbs: 1, fat: 11 },
-      { name: 'Bread', calories: 265, protein: 9, carbs: 49, fat: 3.2 },
-      { name: 'Potato', calories: 77, protein: 2, carbs: 17, fat: 0.1 },
-      { name: 'Tomato', calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2 },
-      { name: 'Cucumber', calories: 16, protein: 0.6, carbs: 4, fat: 0.1 },
-      { name: 'Milk', calories: 42, protein: 3.4, carbs: 5, fat: 1 },
-    ];
-
-    // Map to our Food model shape (per 100g)
-    const docs = foods.map(f => ({
-      name: f.name,
-      category: 'other',
-      nutrition: {
-        calories: f.calories,
-        protein: f.protein,
-        carbs: f.carbs,
-        fat: f.fat,
-        fiber: 0,
-        sugar: 0,
-        sodium: 0,
-      },
-      servingSize: { amount: 100, unit: 'g' },
-      createdBy: adminUser._id,
-      isPublic: true,
-      isVerified: true,
-      per100g: true,
-      description: 'Seed food (per 100g)'
-    }));
-
-    await Food.insertMany(docs);
-    console.log('✅ Seeded 10 foods');
-  } catch (error) {
-    console.error('Seeding error:', error);
-  }
-}
-
-// Ensure a single admin exists
-async function ensureAdminUser() {
-  try {
-    const adminEmail = 'admin@gmail.com';
-    let admin = await User.findOne({ email: adminEmail });
-    if (!admin) {
-      admin = new User({
-        name: 'Admin',
-        email: adminEmail,
-        password: 'messi1010@',
-        role: 'admin',
-        profile: { age: 30 }
-      });
-      await admin.save();
-      console.log('👑 Admin user created (admin@gmail.com / messi1010@)');
-    }
-  } catch (error) {
-    console.error('Admin seed error:', error);
-  }
-}
-
-// Serverless function handler
+// Main handler
 module.exports = async (req, res) => {
   try {
     // Set CORS headers
@@ -219,17 +114,192 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
     if (req.method === 'OPTIONS') {
-      res.status(200).end();
-      return;
+      return res.status(200).end();
     }
 
     await connectToDatabase();
-    return app(req, res);
+
+    const { method, url } = req;
+    const path = url.split('?')[0];
+
+    // Health check
+    if (method === 'GET' && (path === '/' || path === '/api/health')) {
+      return res.json({
+        message: 'كُل بحساب API is running!',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        mongoConnected: mongoose.connection.readyState === 1
+      });
+    }
+
+    // Login endpoint
+    if (method === 'POST' && path === '/api/auth/login') {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ message: 'Please provide a valid email' });
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return res.status(401).json({ 
+          message: 'Invalid email or password',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ 
+          message: 'Invalid email or password',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      const token = generateToken(user._id);
+
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profile: user.profile,
+          dailyGoals: user.dailyGoals,
+          preferences: user.preferences
+        }
+      });
+    }
+
+    // Register endpoint
+    if (method === 'POST' && path === '/api/auth/register') {
+      const { name, email, password, age, gender, height, weight } = req.body;
+
+      // Validation
+      if (!name || !email || !password) {
+        return res.status(400).json({ 
+          message: 'Validation failed',
+          errors: [{ msg: 'Name, email, and password are required' }]
+        });
+      }
+
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ 
+          message: 'Validation failed',
+          errors: [{ msg: 'Please provide a valid email' }]
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ 
+          message: 'Validation failed',
+          errors: [{ msg: 'Password must be at least 6 characters long' }]
+        });
+      }
+
+      if (age && (age < 1 || age > 120)) {
+        return res.status(400).json({ 
+          message: 'Validation failed',
+          errors: [{ msg: 'Age must be between 1 and 120' }]
+        });
+      }
+
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return res.status(400).json({
+          message: 'User already exists with this email',
+          code: 'USER_EXISTS'
+        });
+      }
+
+      const user = new User({
+        name: name.trim(),
+        email: email.toLowerCase(),
+        password,
+        profile: { age, gender, height, weight }
+      });
+
+      await user.save();
+      const token = generateToken(user._id);
+
+      return res.status(201).json({
+        message: 'User registered successfully',
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profile: user.profile,
+          dailyGoals: user.dailyGoals,
+          preferences: user.preferences
+        }
+      });
+    }
+
+    // Get current user endpoint
+    if (method === 'GET' && path === '/api/auth/me') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        const user = await User.findById(decoded.userId);
+        
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+
+        return res.json({
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profile: user.profile,
+            dailyGoals: user.dailyGoals,
+            preferences: user.preferences,
+            createdAt: user.createdAt
+          }
+        });
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+    }
+
+    // Debug admin endpoint
+    if (method === 'GET' && path === '/api/debug/admin') {
+      const adminUser = await User.findOne({ email: 'admin@gmail.com' });
+      return res.json({
+        adminExists: !!adminUser,
+        adminData: adminUser ? {
+          id: adminUser._id,
+          email: adminUser.email,
+          role: adminUser.role,
+          hasPassword: !!adminUser.password,
+          createdAt: adminUser.createdAt
+        } : null,
+        totalUsers: await User.countDocuments()
+      });
+    }
+
+    // Default response
+    return res.status(404).json({ message: 'Route not found' });
+
   } catch (error) {
-    console.error('Serverless function error:', error);
+    console.error('API Error:', error);
     return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error.message 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 };
