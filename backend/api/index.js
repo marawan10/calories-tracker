@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema({
   preferences: {
     language: { type: String, enum: ['en', 'ar'], default: 'en' },
     units: { type: String, enum: ['metric', 'imperial'], default: 'metric' }
+  },
+  avatar: { 
+    type: String, 
+    default: null,
+    maxlength: [500, 'Avatar URL cannot exceed 500 characters']
   }
 }, { timestamps: true });
 
@@ -433,7 +438,8 @@ module.exports = async (req, res) => {
           role: user.role,
           profile: user.profile,
           dailyGoals: user.dailyGoals,
-          preferences: user.preferences
+          preferences: user.preferences,
+          avatar: user.avatar
         }
       });
     }
@@ -499,7 +505,8 @@ module.exports = async (req, res) => {
           role: user.role,
           profile: user.profile,
           dailyGoals: user.dailyGoals,
-          preferences: user.preferences
+          preferences: user.preferences,
+          avatar: user.avatar
         }
       });
     }
@@ -1294,7 +1301,7 @@ module.exports = async (req, res) => {
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      const { name, profile, dailyGoals, preferences } = req.body;
+      const { name, profile, dailyGoals, preferences, avatar } = req.body;
 
       if (name) user.name = name.trim();
       if (profile) {
@@ -1305,6 +1312,9 @@ module.exports = async (req, res) => {
       }
       if (preferences) {
         user.preferences = { ...user.preferences, ...preferences };
+      }
+      if (avatar !== undefined) {
+        user.avatar = avatar;
       }
 
       await user.save();
@@ -1318,9 +1328,59 @@ module.exports = async (req, res) => {
           role: user.role,
           profile: user.profile,
           dailyGoals: user.dailyGoals,
-          preferences: user.preferences
+          preferences: user.preferences,
+          avatar: user.avatar
         }
       });
+    }
+
+    // Upload profile image
+    if (method === 'POST' && path === '/api/users/avatar') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      try {
+        const { avatar } = req.body;
+        
+        if (!avatar) {
+          return res.status(400).json({ message: 'Avatar data is required' });
+        }
+
+        // Validate avatar URL format
+        if (typeof avatar !== 'string' || avatar.length > 500) {
+          return res.status(400).json({ message: 'Invalid avatar format' });
+        }
+
+        // Update user avatar
+        user.avatar = avatar;
+        await user.save();
+
+        return res.json({
+          message: 'Avatar updated successfully',
+          avatar: user.avatar
+        });
+
+      } catch (error) {
+        console.error('Avatar upload error:', error);
+        return res.status(500).json({
+          message: 'Server error while updating avatar',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+      }
     }
 
     // Get user goals
@@ -1640,7 +1700,8 @@ module.exports = async (req, res) => {
             id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            avatar: user.avatar
           }
         });
       } catch (error) {
