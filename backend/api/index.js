@@ -894,6 +894,207 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Create/Update meal (POST /api/meals)
+    if (method === 'POST' && path === '/api/meals') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { mealType, items, notes, date } = req.body;
+
+      // Validate required fields
+      if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'mealType and items are required' });
+      }
+
+      // Validate meal type
+      const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snacks'];
+      if (!validMealTypes.includes(mealType)) {
+        return res.status(400).json({ message: 'Invalid meal type' });
+      }
+
+      // Use provided date or today
+      const mealDate = date ? new Date(date) : new Date();
+      const startOfDay = new Date(mealDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(mealDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Find or create meal document for the day
+      let meal = await Meal.findOne({
+        user: user._id,
+        date: { $gte: startOfDay, $lte: endOfDay }
+      });
+
+      if (!meal) {
+        meal = new Meal({
+          user: user._id,
+          date: mealDate,
+          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] }
+        });
+      }
+
+      // Process items and calculate nutrition
+      const processedItems = [];
+      let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+
+      for (const item of items) {
+        if (!item.food || !item.weight || item.weight <= 0) {
+          continue;
+        }
+
+        const food = await Food.findById(item.food);
+        if (!food) {
+          continue;
+        }
+
+        const weight = parseFloat(item.weight);
+        const multiplier = weight / 100; // Nutrition is per 100g
+
+        const itemNutrition = {
+          calories: (food.nutrition.calories || 0) * multiplier,
+          protein: (food.nutrition.protein || 0) * multiplier,
+          carbs: (food.nutrition.carbs || 0) * multiplier,
+          fat: (food.nutrition.fat || 0) * multiplier
+        };
+
+        processedItems.push({
+          food: food._id,
+          weight,
+          calories: itemNutrition.calories,
+          protein: itemNutrition.protein,
+          carbs: itemNutrition.carbs,
+          fat: itemNutrition.fat
+        });
+
+        totalCalories += itemNutrition.calories;
+        totalProtein += itemNutrition.protein;
+        totalCarbs += itemNutrition.carbs;
+        totalFat += itemNutrition.fat;
+      }
+
+      // Add items to the specific meal type
+      meal.meals[mealType] = processedItems;
+
+      // Recalculate total nutrition for the entire day
+      meal.totalNutrition = {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+        sugar: 0,
+        sodium: 0
+      };
+
+      ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
+        meal.meals[type].forEach(item => {
+          meal.totalNutrition.calories += item.calories || 0;
+          meal.totalNutrition.protein += item.protein || 0;
+          meal.totalNutrition.carbs += item.carbs || 0;
+          meal.totalNutrition.fat += item.fat || 0;
+        });
+      });
+
+      meal.notes = notes || '';
+      await meal.save();
+
+      // Populate food details for response
+      await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+
+      return res.json({
+        message: 'Meal saved successfully',
+        meal
+      });
+    }
+
+    // Delete meal (DELETE /api/meals/:id)
+    if (method === 'DELETE' && path.startsWith('/api/meals/')) {
+      const mealId = path.split('/')[3];
+      
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      // Handle composite meal IDs (like "mealId_breakfast")
+      let actualMealId = mealId;
+      let mealTypeToDelete = null;
+      
+      if (mealId.includes('_')) {
+        const parts = mealId.split('_');
+        actualMealId = parts[0];
+        mealTypeToDelete = parts[1];
+      }
+
+      try {
+        const meal = await Meal.findOne({ _id: actualMealId, user: user._id });
+        if (!meal) {
+          return res.status(404).json({ message: 'Meal not found' });
+        }
+
+        if (mealTypeToDelete) {
+          // Delete specific meal type (breakfast, lunch, etc.)
+          meal.meals[mealTypeToDelete] = [];
+          
+          // Recalculate total nutrition
+          meal.totalNutrition = {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            fiber: 0,
+            sugar: 0,
+            sodium: 0
+          };
+
+          ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
+            meal.meals[type].forEach(item => {
+              meal.totalNutrition.calories += item.calories || 0;
+              meal.totalNutrition.protein += item.protein || 0;
+              meal.totalNutrition.carbs += item.carbs || 0;
+              meal.totalNutrition.fat += item.fat || 0;
+            });
+          });
+
+          await meal.save();
+        } else {
+          // Delete entire meal document
+          await Meal.findByIdAndDelete(actualMealId);
+        }
+
+        return res.json({ message: 'Meal deleted successfully' });
+      } catch (error) {
+        console.error('Delete meal error:', error);
+        return res.status(500).json({ message: 'Failed to delete meal' });
+      }
+    }
+
     // Add food to meal
     if (method === 'POST' && path === '/api/meals/add') {
       const authHeader = req.headers.authorization;
