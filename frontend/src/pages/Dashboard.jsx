@@ -196,7 +196,7 @@ export default function Dashboard() {
   }
 
   const t = daily.dailyTotals || {}
-  const weeklyActual = weekly ? weekly.dailyData.reduce((s, d) => s + (d.calories || 0), 0) : 0
+  const weeklyActual = weekly && Array.isArray(weekly.dailyData) ? weekly.dailyData.reduce((s, d) => s + (d.calories || 0), 0) : 0
   const goalDaily = goals.calories || recommendedDaily
   
   const weeklyRecommended = recommendedDaily * (weekly?.dailyData?.length || 7)
