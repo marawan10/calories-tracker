@@ -12,7 +12,7 @@ export default function DonutChart({
   enhanced = false,
   showLegend = true
 }) {
-  const total = data.reduce((sum, value) => sum + value, 0)
+  const total = Array.isArray(data) ? data.reduce((sum, value) => sum + value, 0) : 0
   
   const chartData = {
     labels,
