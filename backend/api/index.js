@@ -479,38 +479,80 @@ module.exports = async (req, res) => {
 
     // Get Foods endpoint
     if (method === 'GET' && path === '/api/foods') {
-      const { search, category, limit = 100, page = 1 } = req.query || {};
-      
-      let query = {};
-      
-      if (search) {
-        query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { nameAr: { $regex: search, $options: 'i' } }
-        ];
-      }
-      
-      if (category) {
-        query.category = category;
-      }
-
-      const totalCount = await Food.countDocuments(query);
-      const foods = await Food.find(query)
-        .populate('createdBy', 'name email')
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit))
-        .sort({ name: 1 });
-
-      return res.json({
-        foods: foods || [],
-        total: totalCount || 0,
-        pagination: {
-          total: totalCount || 0,
-          page: parseInt(page) || 1,
-          limit: parseInt(limit) || 100,
-          pages: Math.ceil((totalCount || 0) / parseInt(limit)) || 1
+      try {
+        const { search, category, limit = 100, page = 1 } = req.query || {};
+        
+        let query = {};
+        
+        if (search) {
+          query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { nameAr: { $regex: search, $options: 'i' } }
+          ];
         }
-      });
+        
+        if (category) {
+          query.category = category;
+        }
+
+        const totalCount = await Food.countDocuments(query);
+        const foods = await Food.find(query)
+          .populate('createdBy', 'name email')
+          .limit(parseInt(limit))
+          .skip((parseInt(page) - 1) * parseInt(limit))
+          .sort({ name: 1 });
+
+        // Ensure foods is always an array with proper structure
+        const safeFoods = Array.isArray(foods) ? foods.map(food => ({
+          _id: food._id,
+          name: food.name || '',
+          nameAr: food.nameAr || '',
+          category: food.category || 'other',
+          nutrition: {
+            calories: food.nutrition?.calories || 0,
+            protein: food.nutrition?.protein || 0,
+            carbs: food.nutrition?.carbs || 0,
+            fat: food.nutrition?.fat || 0,
+            fiber: food.nutrition?.fiber || 0,
+            sugar: food.nutrition?.sugar || 0,
+            sodium: food.nutrition?.sodium || 0
+          },
+          servingSize: food.servingSize || { amount: 100, unit: 'g' },
+          createdBy: food.createdBy || null,
+          isPublic: food.isPublic !== false,
+          isVerified: food.isVerified || false,
+          per100g: food.per100g !== false,
+          description: food.description || '',
+          createdAt: food.createdAt,
+          updatedAt: food.updatedAt
+        })) : [];
+
+        const response = {
+          foods: safeFoods,
+          total: totalCount || 0,
+          pagination: {
+            total: totalCount || 0,
+            page: parseInt(page) || 1,
+            limit: parseInt(limit) || 100,
+            pages: Math.ceil((totalCount || 0) / parseInt(limit)) || 1
+          }
+        };
+        
+        console.log('Foods API Response:', {
+          foodsCount: safeFoods.length,
+          total: totalCount,
+          query: req.query
+        });
+        
+        return res.json(response);
+      } catch (error) {
+        console.error('Foods endpoint error:', error);
+        return res.json({
+          foods: [],
+          total: 0,
+          pagination: { total: 0, page: 1, limit: 100, pages: 1 }
+        });
+      }
     }
 
     // Create Food endpoint
