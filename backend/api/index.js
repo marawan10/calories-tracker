@@ -289,7 +289,22 @@ module.exports = async (req, res) => {
     await connectToDatabase();
 
     const { method, url } = req;
-    const path = url.split('?')[0];
+    const urlParts = url.split('?');
+    const path = urlParts[0];
+    
+    // Parse query parameters manually for better compatibility
+    const queryParams = {};
+    if (urlParts[1]) {
+      urlParts[1].split('&').forEach(param => {
+        const [key, value] = param.split('=');
+        if (key && value) {
+          queryParams[decodeURIComponent(key)] = decodeURIComponent(value);
+        }
+      });
+    }
+    
+    // Merge with req.query for compatibility
+    req.query = { ...req.query, ...queryParams };
 
     // Health check
     if (method === 'GET' && (path === '/' || path === '/api/health')) {
@@ -664,7 +679,7 @@ module.exports = async (req, res) => {
     }
 
     // Get user's meals for a specific date
-    if (method === 'GET' && path === '/api/meals') {
+    if (method === 'GET' && (path === '/api/meals' || path.startsWith('/api/meals/daily/'))) {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'No token provided' });
@@ -682,8 +697,15 @@ module.exports = async (req, res) => {
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      const { date } = req.query;
-      const queryDate = date ? new Date(date) : new Date();
+      // Handle both /api/meals?date=... and /api/meals/daily/YYYY-MM-DD
+      let queryDate;
+      if (path.startsWith('/api/meals/daily/')) {
+        const dateStr = path.split('/api/meals/daily/')[1];
+        queryDate = new Date(dateStr);
+      } else {
+        const { date } = req.query;
+        queryDate = date ? new Date(date) : new Date();
+      }
       
       // Set to start and end of day
       const startOfDay = new Date(queryDate);
@@ -706,6 +728,79 @@ module.exports = async (req, res) => {
       }
 
       return res.json({ meal });
+    }
+
+    // Get meal statistics for date range
+    if (method === 'GET' && path === '/api/meals/stats') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      const meals = await Meal.find({
+        user: user._id,
+        date: { $gte: start, $lte: end }
+      }).populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+
+      // Calculate stats
+      const totalCalories = meals.reduce((sum, meal) => sum + meal.totalNutrition.calories, 0);
+      const avgCalories = meals.length > 0 ? totalCalories / meals.length : 0;
+
+      // Get frequent foods
+      const foodFrequency = {};
+      meals.forEach(meal => {
+        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
+          meal.meals[mealType].forEach(item => {
+            if (item.food) {
+              const foodId = item.food._id.toString();
+              foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1;
+            }
+          });
+        });
+      });
+
+      const frequentFoods = Object.entries(foodFrequency)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([foodId, count]) => {
+          const food = meals.flatMap(meal => 
+            ['breakfast', 'lunch', 'dinner', 'snacks'].flatMap(type => 
+              meal.meals[type].filter(item => item.food && item.food._id.toString() === foodId)
+            )
+          )[0]?.food;
+          return { food, count };
+        })
+        .filter(item => item.food);
+
+      return res.json({
+        stats: {
+          totalMeals: meals.length,
+          totalCalories,
+          avgCalories: Math.round(avgCalories),
+          dateRange: { startDate: start, endDate: end }
+        },
+        meals,
+        frequentFoods
+      });
     }
 
     // Add food to meal
