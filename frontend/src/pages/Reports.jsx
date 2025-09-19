@@ -24,7 +24,9 @@ export default function Reports() {
   useEffect(() => { load() }, [range])
 
   const series = useMemo(() => {
-    if (!stats) return { labels: [], datasets: [] }
+    if (!stats || !stats.dailyData || !Array.isArray(stats.dailyData)) {
+      return { labels: [], datasets: [] }
+    }
     const end = new Date()
     const start = addDays(end, range === 'week' ? -6 : -29)
     const labels = []
@@ -44,7 +46,7 @@ export default function Reports() {
   }, [stats, range])
 
   const topFoods = useMemo(() => {
-    if (!stats) return []
+    if (!stats || !stats.mostLoggedFoods || typeof stats.mostLoggedFoods !== 'object') return []
     return Object.entries(stats.mostLoggedFoods)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -107,7 +109,8 @@ export default function Reports() {
           {/* Custom Enhanced Legend */}
           <div className="space-y-2">
             {Object.entries(stats?.categoryBreakdown || {}).map(([category, value], index) => {
-              const total = Object.values(stats?.categoryBreakdown || {}).reduce((sum, val) => sum + val, 0);
+              const values = Object.values(stats?.categoryBreakdown || {});
+              const total = Array.isArray(values) ? values.reduce((sum, val) => sum + val, 0) : 0;
               const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
               const colors = ["#a855f7", "#ec4899", "#38bdf8", "#10b981", "#f59e0b", "#ef4444", "#22c55e", "#06b6d4", "#8b5cf6", "#14b8a6", "#64748b"];
               const color = colors[index % colors.length];
@@ -177,7 +180,10 @@ export default function Reports() {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-slate-800 text-lg">
-                      {Object.values(stats?.categoryBreakdown || {}).reduce((sum, val) => sum + val, 0).toFixed(1)} 
+                      {(() => {
+                        const values = Object.values(stats?.categoryBreakdown || {});
+                        return Array.isArray(values) ? values.reduce((sum, val) => sum + val, 0).toFixed(1) : '0.0';
+                      })()} 
                       <span className="text-sm font-normal text-slate-600 ml-1">جم</span>
                     </div>
                     <div className="text-xs text-slate-500">جميع التصنيفات</div>
