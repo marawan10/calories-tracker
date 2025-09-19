@@ -16,7 +16,7 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://calories-tracker-frontend.vercel.app', 'https://kul-behesab.vercel.app'] 
+    ? ['https://calories-tracker-6oiu.vercel.app', 'https://kul-behesab.vercel.app'] 
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
