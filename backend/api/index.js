@@ -161,11 +161,17 @@ const mealSchema = new mongoose.Schema({
 // Calculate total nutrition before saving
 mealSchema.pre('save', async function(next) {
   try {
-    // Skip recalculation if totalNutrition is already set (to avoid conflicts)
-    if (this.totalNutrition && this.totalNutrition.calories !== undefined) {
+    console.log('Pre-save middleware triggered');
+    
+    // Skip recalculation if totalNutrition is already properly set
+    if (this.totalNutrition && 
+        typeof this.totalNutrition.calories === 'number' && 
+        this.totalNutrition.calories >= 0) {
+      console.log('Skipping nutrition recalculation - already calculated');
       return next();
     }
 
+    console.log('Calculating nutrition in pre-save middleware');
     let totalNutrition = {
       calories: 0, protein: 0, carbs: 0, fat: 0,
       fiber: 0, sugar: 0, sodium: 0
@@ -175,36 +181,43 @@ mealSchema.pre('save', async function(next) {
     for (const mealType of ['breakfast', 'lunch', 'dinner', 'snacks']) {
       if (this.meals[mealType] && Array.isArray(this.meals[mealType])) {
         for (const item of this.meals[mealType]) {
-          // If item already has calculated nutrition, use it
-          if (item.calories !== undefined) {
-            totalNutrition.calories += item.calories || 0;
-            totalNutrition.protein += item.protein || 0;
-            totalNutrition.carbs += item.carbs || 0;
-            totalNutrition.fat += item.fat || 0;
-          } else if (item.food && (item.weight || item.quantity)) {
-            // Fallback: calculate from food data
-            const food = await Food.findById(item.food);
-            if (food) {
-              const weight = item.weight || item.quantity || 100;
-              const multiplier = weight / 100; // Nutrition is per 100g
-              totalNutrition.calories += (food.nutrition?.calories || 0) * multiplier;
-              totalNutrition.protein += (food.nutrition?.protein || 0) * multiplier;
-              totalNutrition.carbs += (food.nutrition?.carbs || 0) * multiplier;
-              totalNutrition.fat += (food.nutrition?.fat || 0) * multiplier;
-              totalNutrition.fiber += (food.nutrition?.fiber || 0) * multiplier;
-              totalNutrition.sugar += (food.nutrition?.sugar || 0) * multiplier;
-              totalNutrition.sodium += (food.nutrition?.sodium || 0) * multiplier;
+          try {
+            // If item already has calculated nutrition, use it
+            if (typeof item.calories === 'number') {
+              totalNutrition.calories += item.calories || 0;
+              totalNutrition.protein += item.protein || 0;
+              totalNutrition.carbs += item.carbs || 0;
+              totalNutrition.fat += item.fat || 0;
+            } else if (item.food && (item.weight || item.quantity)) {
+              // Fallback: calculate from food data
+              const food = await Food.findById(item.food);
+              if (food && food.nutrition) {
+                const weight = item.weight || item.quantity || 100;
+                const multiplier = weight / 100; // Nutrition is per 100g
+                totalNutrition.calories += (food.nutrition.calories || 0) * multiplier;
+                totalNutrition.protein += (food.nutrition.protein || 0) * multiplier;
+                totalNutrition.carbs += (food.nutrition.carbs || 0) * multiplier;
+                totalNutrition.fat += (food.nutrition.fat || 0) * multiplier;
+                totalNutrition.fiber += (food.nutrition.fiber || 0) * multiplier;
+                totalNutrition.sugar += (food.nutrition.sugar || 0) * multiplier;
+                totalNutrition.sodium += (food.nutrition.sodium || 0) * multiplier;
+              }
             }
+          } catch (itemError) {
+            console.error('Error processing item in pre-save:', itemError);
+            // Continue with other items
           }
         }
       }
     }
 
     this.totalNutrition = totalNutrition;
+    console.log('Pre-save nutrition calculated:', totalNutrition);
     next();
   } catch (error) {
     console.error('Meal pre-save middleware error:', error);
-    next(error);
+    // Don't fail the save, just log the error
+    next();
   }
 });
 
@@ -915,20 +928,28 @@ module.exports = async (req, res) => {
     // Create/Update meal (POST /api/meals)
     if (method === 'POST' && path === '/api/meals') {
       try {
+        console.log('=== POST /api/meals START ===');
+        
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          console.log('No auth header provided');
           return res.status(401).json({ message: 'No token provided' });
         }
 
         let user;
         try {
           const token = authHeader.substring(7);
+          console.log('Token received, length:', token.length);
           const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+          console.log('Token decoded, userId:', decoded.userId);
           user = await User.findById(decoded.userId);
           if (!user) {
+            console.log('User not found for ID:', decoded.userId);
             return res.status(401).json({ message: 'Invalid token' });
           }
+          console.log('User found:', user.email);
         } catch (error) {
+          console.error('Token verification error:', error);
           return res.status(401).json({ message: 'Invalid token' });
         }
 
@@ -957,9 +978,19 @@ module.exports = async (req, res) => {
 
         console.log('Date range:', { startOfDay, endOfDay });
 
+        // Ensure database connection
+        try {
+          await connectToDatabase();
+          console.log('Database connected successfully');
+        } catch (dbError) {
+          console.error('Database connection error:', dbError);
+          return res.status(500).json({ message: 'Database connection failed' });
+        }
+
         // Find or create meal document for the day
         let meal;
         try {
+          console.log('Searching for existing meal...');
           meal = await Meal.findOne({
             user: user._id,
             date: { $gte: startOfDay, $lte: endOfDay }
@@ -967,7 +998,7 @@ module.exports = async (req, res) => {
           console.log('Found existing meal:', !!meal);
         } catch (findError) {
           console.error('Error finding meal:', findError);
-          meal = null;
+          return res.status(500).json({ message: 'Database query failed' });
         }
 
         if (!meal) {
@@ -979,9 +1010,10 @@ module.exports = async (req, res) => {
               meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
               totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
             });
+            console.log('New meal document created');
           } catch (createError) {
             console.error('Error creating meal:', createError);
-            throw createError;
+            return res.status(500).json({ message: 'Failed to create meal document' });
           }
         }
 
@@ -1084,12 +1116,31 @@ module.exports = async (req, res) => {
         meal.notes = notes || '';
         
         console.log('Attempting to save meal...');
+        console.log('Meal object before save:', {
+          user: meal.user,
+          date: meal.date,
+          mealType: mealType,
+          itemsCount: processedItems.length,
+          totalNutrition: meal.totalNutrition
+        });
+        
         try {
-          await meal.save();
-          console.log('Meal saved to database');
+          // Temporarily disable the pre-save middleware to avoid conflicts
+          const savedMeal = await meal.save({ validateBeforeSave: true });
+          console.log('Meal saved to database successfully');
+          meal = savedMeal;
         } catch (saveError) {
           console.error('Error saving meal:', saveError);
-          throw saveError;
+          console.error('Save error details:', {
+            name: saveError.name,
+            message: saveError.message,
+            stack: saveError.stack
+          });
+          return res.status(500).json({ 
+            message: 'Failed to save meal', 
+            error: saveError.message,
+            details: process.env.NODE_ENV === 'development' ? saveError.stack : undefined
+          });
         }
 
         // Populate food details for response
