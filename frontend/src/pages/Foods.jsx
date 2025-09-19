@@ -71,8 +71,12 @@ export default function Foods() {
     try {
       setLoading(true)
       const { data } = await api.get('/foods', { params: { search: query || undefined, category: category || undefined, limit: 1000 } })
-      setFoods(data.foods)
-      setTotalFoods(data.pagination?.total || data.total || data.foods.length)
+      setFoods(Array.isArray(data.foods) ? data.foods : [])
+      setTotalFoods(data.pagination?.total || data.total || (Array.isArray(data.foods) ? data.foods.length : 0))
+    } catch (error) {
+      console.error('Error fetching foods:', error)
+      setFoods([])
+      setTotalFoods(0)
     } finally {
       setLoading(false)
     }
@@ -112,6 +116,7 @@ export default function Foods() {
 
   // Apply filters and sorting to foods
   const filteredAndSortedFoods = useMemo(() => {
+    if (!Array.isArray(foods)) return []
     let filtered = [...foods]
 
     // Apply nutritional filters
