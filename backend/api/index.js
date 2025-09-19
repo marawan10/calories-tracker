@@ -118,6 +118,21 @@ const foodSchema = new mongoose.Schema({
   description: { type: String, trim: true }
 }, { timestamps: true });
 
+// Add method to calculate nutrition for a given weight
+foodSchema.methods.calculateNutrition = function(weight) {
+  const multiplier = weight / 100; // Assuming nutrition values are per 100g
+  
+  return {
+    calories: Math.round((this.nutrition.calories || 0) * multiplier),
+    protein: Math.round(((this.nutrition.protein || 0) * multiplier) * 10) / 10,
+    carbs: Math.round(((this.nutrition.carbs || 0) * multiplier) * 10) / 10,
+    fat: Math.round(((this.nutrition.fat || 0) * multiplier) * 10) / 10,
+    fiber: Math.round(((this.nutrition.fiber || 0) * multiplier) * 10) / 10,
+    sugar: Math.round(((this.nutrition.sugar || 0) * multiplier) * 10) / 10,
+    sodium: Math.round((this.nutrition.sodium || 0) * multiplier)
+  };
+};
+
 // Create Food model
 const Food = mongoose.models.Food || mongoose.model('Food', foodSchema);
 
@@ -312,6 +327,7 @@ module.exports = async (req, res) => {
     const allowedOrigins = [
       'https://calories-tracker-6oiu.vercel.app',
       'https://calories-tracker-6oiu-git-main-marawanmokhtar10-1042s-projects.vercel.app',
+      'https://calories-tracker-opal.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173'
     ];
@@ -323,9 +339,10 @@ module.exports = async (req, res) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
     }
     
-    res.setHeader('Access-Control-Allow-Credentials', true);
+    // Set additional CORS headers
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
@@ -1442,6 +1459,7 @@ module.exports = async (req, res) => {
     const allowedOrigins = [
       'https://calories-tracker-6oiu.vercel.app',
       'https://calories-tracker-6oiu-git-main-marawanmokhtar10-1042s-projects.vercel.app',
+      'https://calories-tracker-opal.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173'
     ];
