@@ -121,33 +121,55 @@ const foodSchema = new mongoose.Schema({
 // Create Food model
 const Food = mongoose.models.Food || mongoose.model('Food', foodSchema);
 
+// Meal Item Schema
+const mealItemSchema = new mongoose.Schema({
+  food: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Food',
+    required: true
+  },
+  weight: {
+    type: Number,
+    required: [true, 'Weight is required'],
+    min: [1, 'Weight must be at least 1 gram'],
+    max: [5000, 'Weight cannot exceed 5000 grams']
+  },
+  // Store calculated nutrition at time of logging (in case food is modified later)
+  nutrition: {
+    calories: { type: Number, required: true },
+    protein: { type: Number, required: true },
+    carbs: { type: Number, required: true },
+    fat: { type: Number, required: true },
+    fiber: { type: Number, default: 0 },
+    sugar: { type: Number, default: 0 },
+    sodium: { type: Number, default: 0 }
+  }
+});
+
 // Meal Schema
 const mealSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  date: { type: Date, required: true, default: Date.now },
-  meals: {
-    breakfast: [{
-      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-      quantity: { type: Number, required: true, min: 0 },
-      unit: { type: String, default: 'g' }
-    }],
-    lunch: [{
-      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-      quantity: { type: Number, required: true, min: 0 },
-      unit: { type: String, default: 'g' }
-    }],
-    dinner: [{
-      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-      quantity: { type: Number, required: true, min: 0 },
-      unit: { type: String, default: 'g' }
-    }],
-    snacks: [{
-      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-      quantity: { type: Number, required: true, min: 0 },
-      unit: { type: String, default: 'g' }
-    }]
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  totalNutrition: {
+  date: {
+    type: Date,
+    required: true,
+    default: Date.now
+  },
+  mealType: {
+    type: String,
+    required: true,
+    enum: ['breakfast', 'lunch', 'dinner', 'snack']
+  },
+  items: [mealItemSchema],
+  notes: {
+    type: String,
+    maxlength: [500, 'Notes cannot exceed 500 characters']
+  },
+  // Calculated totals for the entire meal
+  totals: {
     calories: { type: Number, default: 0 },
     protein: { type: Number, default: 0 },
     carbs: { type: Number, default: 0 },
@@ -156,13 +178,49 @@ const mealSchema = new mongoose.Schema({
     sugar: { type: Number, default: 0 },
     sodium: { type: Number, default: 0 }
   }
-}, { timestamps: true });
+}, {
+  timestamps: true
+});
 
-// DISABLED: Calculate total nutrition before saving - CAUSING 500 ERRORS
-// mealSchema.pre('save', async function(next) {
-//   // Middleware disabled to prevent conflicts
-//   next();
-// });
+// Pre-save middleware to calculate meal totals
+mealSchema.pre('save', function(next) {
+  this.calculateTotals();
+  next();
+});
+
+// Method to calculate meal totals
+mealSchema.methods.calculateTotals = function() {
+  const totals = {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    fiber: 0,
+    sugar: 0,
+    sodium: 0
+  };
+
+  this.items.forEach(item => {
+    totals.calories += item.nutrition.calories || 0;
+    totals.protein += item.nutrition.protein || 0;
+    totals.carbs += item.nutrition.carbs || 0;
+    totals.fat += item.nutrition.fat || 0;
+    totals.fiber += item.nutrition.fiber || 0;
+    totals.sugar += item.nutrition.sugar || 0;
+    totals.sodium += item.nutrition.sodium || 0;
+  });
+
+  // Round to appropriate decimal places
+  this.totals = {
+    calories: Math.round(totals.calories),
+    protein: Math.round(totals.protein * 10) / 10,
+    carbs: Math.round(totals.carbs * 10) / 10,
+    fat: Math.round(totals.fat * 10) / 10,
+    fiber: Math.round(totals.fiber * 10) / 10,
+    sugar: Math.round(totals.sugar * 10) / 10,
+    sodium: Math.round(totals.sodium)
+  };
+};
 
 // Create Meal model
 const Meal = mongoose.models.Meal || mongoose.model('Meal', mealSchema);
@@ -757,53 +815,15 @@ module.exports = async (req, res) => {
       const endOfDay = new Date(queryDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      let meal = await Meal.findOne({
+      // Get all meals for the date using new schema
+      const meals = await Meal.find({
         user: user._id,
         date: { $gte: startOfDay, $lte: endOfDay }
-      }).populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
-
-      if (!meal) {
-        meal = new Meal({
-          user: user._id,
-          date: queryDate,
-          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] }
-        });
-        await meal.save();
-      }
-
-      // Transform meal data to match frontend expectations
-      const mealResponse = meal || {
-        user: user._id,
-        date: queryDate,
-        meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-        totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
-      };
-
-      // Convert to meals array format that frontend expects
-      const mealsArray = [];
-      if (meal && meal.meals) {
-        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
-          if (meal.meals[mealType] && Array.isArray(meal.meals[mealType]) && meal.meals[mealType].length > 0) {
-            mealsArray.push({
-              _id: meal._id + '_' + mealType,
-              mealType,
-              items: meal.meals[mealType],
-              totals: {
-                calories: meal.meals[mealType].reduce((sum, item) => sum + (item.calories || 0), 0),
-                protein: meal.meals[mealType].reduce((sum, item) => sum + (item.protein || 0), 0),
-                carbs: meal.meals[mealType].reduce((sum, item) => sum + (item.carbs || 0), 0),
-                fat: meal.meals[mealType].reduce((sum, item) => sum + (item.fat || 0), 0)
-              },
-              date: meal.date,
-              user: meal.user
-            });
-          }
-        });
-      }
+      }).populate('items.food', 'name nameAr category nutrition')
+        .sort({ createdAt: -1 });
 
       return res.json({ 
-        meal: mealResponse,
-        meals: mealsArray
+        meals: meals
       });
     }
 
@@ -883,11 +903,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Create/Update meal (POST /api/meals) - SIMPLIFIED VERSION
+    // Create/Update meal (POST /api/meals) - NEW SCHEMA VERSION
     if (method === 'POST' && path === '/api/meals') {
       console.log('=== POST /api/meals START ===');
       console.log('Request body:', JSON.stringify(req.body, null, 2));
-      console.log('Request headers:', req.headers);
       
       // Basic auth check
       const authHeader = req.headers.authorization;
@@ -896,119 +915,107 @@ module.exports = async (req, res) => {
         return res.status(401).json({ message: 'No token provided' });
       }
 
-      // Verify token and get user
       let user;
       try {
         const token = authHeader.substring(7);
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
         user = await User.findById(decoded.userId);
         if (!user) {
+          console.log('User not found for token');
           return res.status(401).json({ message: 'Invalid token' });
         }
+        console.log('User authenticated:', user.email);
       } catch (error) {
+        console.log('Token verification failed:', error.message);
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      // Get request data
-      const { mealType, items, notes = '', date } = req.body;
-      
-      // Basic validation
-      if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: 'mealType and items are required' });
-      }
-
-      if (!['breakfast', 'lunch', 'dinner', 'snacks'].includes(mealType)) {
-        return res.status(400).json({ message: 'Invalid meal type' });
-      }
-
       try {
-        // Process date
-        const mealDate = date ? new Date(date) : new Date();
-        const startOfDay = new Date(mealDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(mealDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        const { date, mealType, items, notes } = req.body;
+        console.log('Parsed data:', { date, mealType, items, notes });
 
-        // Find or create meal document
-        let meal = await Meal.findOne({
-          user: user._id,
-          date: { $gte: startOfDay, $lte: endOfDay }
-        });
-
-        if (!meal) {
-          meal = new Meal({
-            user: user._id,
-            date: mealDate,
-            meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-            totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
-            notes: ''
+        // Validation
+        if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
+          console.log('Validation failed - missing required fields');
+          return res.status(400).json({ 
+            message: 'Meal type and items are required' 
           });
         }
 
-        // Process food items
+        if (!['breakfast', 'lunch', 'dinner', 'snack'].includes(mealType)) {
+          console.log('Validation failed - invalid meal type:', mealType);
+          return res.status(400).json({ 
+            message: 'Invalid meal type. Must be breakfast, lunch, dinner, or snack' 
+          });
+        }
+
+        // Validate and calculate nutrition for each item
         const processedItems = [];
+        
         for (const item of items) {
-          if (!item.food || !item.weight || item.weight <= 0) continue;
-
+          console.log('Processing item:', { foodId: item.food, weight: item.weight });
+          
           const food = await Food.findById(item.food);
-          if (!food) continue;
-
-          const weight = parseFloat(item.weight);
-          const multiplier = weight / 100;
-
-          processedItems.push({
-            food: food._id,
-            weight: weight,
-            calories: (food.nutrition?.calories || 0) * multiplier,
-            protein: (food.nutrition?.protein || 0) * multiplier,
-            carbs: (food.nutrition?.carbs || 0) * multiplier,
-            fat: (food.nutrition?.fat || 0) * multiplier
-          });
-        }
-
-        if (processedItems.length === 0) {
-          return res.status(400).json({ message: 'No valid food items found' });
-        }
-
-        // Update meal
-        meal.meals[mealType] = processedItems;
-        meal.notes = notes;
-
-        // Calculate total nutrition manually (bypass middleware)
-        let totalNutrition = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
-        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
-          if (meal.meals[type]) {
-            meal.meals[type].forEach(item => {
-              totalNutrition.calories += item.calories || 0;
-              totalNutrition.protein += item.protein || 0;
-              totalNutrition.carbs += item.carbs || 0;
-              totalNutrition.fat += item.fat || 0;
+          
+          if (!food) {
+            console.error('Food not found:', item.food);
+            return res.status(400).json({
+              message: `Food with ID ${item.food} not found`
             });
           }
-        });
-        meal.totalNutrition = totalNutrition;
 
-        // Save meal
-        await meal.save();
+          console.log('Found food:', { name: food.name, nameAr: food.nameAr, servingSize: food.servingSize });
 
-        // Return success
-        return res.json({
-          message: 'Meal saved successfully',
-          meal: {
-            _id: meal._id,
-            user: meal.user,
-            date: meal.date,
-            meals: meal.meals,
-            totalNutrition: meal.totalNutrition,
-            notes: meal.notes
+          // Check if user can access this food
+          if (!food.isPublic && !food.createdBy.equals(user._id)) {
+            return res.status(403).json({
+              message: `Access denied to food: ${food.name}`
+            });
           }
+
+          try {
+            // Calculate nutrition for the specified weight
+            const nutrition = food.calculateNutrition(item.weight);
+            console.log('Calculated nutrition:', nutrition);
+            
+            processedItems.push({
+              food: food._id,
+              weight: item.weight,
+              nutrition
+            });
+          } catch (error) {
+            console.error('Error calculating nutrition:', error);
+            return res.status(500).json({
+              message: `Error calculating nutrition for ${food.name}`,
+              error: error.message
+            });
+          }
+        }
+
+        // Create meal
+        const meal = new Meal({
+          user: user._id,
+          date: date ? new Date(date) : new Date(),
+          mealType,
+          items: processedItems,
+          notes
+        });
+
+        await meal.save();
+        
+        // Populate food details for response
+        await meal.populate('items.food', 'name nameAr category nutrition');
+
+        res.status(201).json({
+          message: 'Meal logged successfully',
+          meal
         });
 
       } catch (error) {
         console.error('POST /api/meals error:', error);
-        return res.status(500).json({ 
-          message: 'Server error',
-          error: error.message
+        return res.status(500).json({
+          message: 'Server error while creating meal',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
       }
     }
@@ -1034,51 +1041,14 @@ module.exports = async (req, res) => {
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      // Handle composite meal IDs (like "mealId_breakfast")
-      let actualMealId = mealId;
-      let mealTypeToDelete = null;
-      
-      if (mealId.includes('_')) {
-        const parts = mealId.split('_');
-        actualMealId = parts[0];
-        mealTypeToDelete = parts[1];
-      }
-
       try {
-        const meal = await Meal.findOne({ _id: actualMealId, user: user._id });
+        const meal = await Meal.findOne({ _id: mealId, user: user._id });
         if (!meal) {
           return res.status(404).json({ message: 'Meal not found' });
         }
 
-        if (mealTypeToDelete) {
-          // Delete specific meal type (breakfast, lunch, etc.)
-          meal.meals[mealTypeToDelete] = [];
-          
-          // Recalculate total nutrition
-          meal.totalNutrition = {
-            calories: 0,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
-            fiber: 0,
-            sugar: 0,
-            sodium: 0
-          };
-
-          ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
-            meal.meals[type].forEach(item => {
-              meal.totalNutrition.calories += item.calories || 0;
-              meal.totalNutrition.protein += item.protein || 0;
-              meal.totalNutrition.carbs += item.carbs || 0;
-              meal.totalNutrition.fat += item.fat || 0;
-            });
-          });
-
-          await meal.save();
-        } else {
-          // Delete entire meal document
-          await Meal.findByIdAndDelete(actualMealId);
-        }
+        // Delete entire meal document
+        await Meal.findByIdAndDelete(mealId);
 
         return res.json({ message: 'Meal deleted successfully' });
       } catch (error) {
@@ -1087,128 +1057,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Add food to meal
-    if (method === 'POST' && path === '/api/meals/add') {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'No token provided' });
-      }
 
-      let user;
-      try {
-        const token = authHeader.substring(7);
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-        user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(401).json({ message: 'Invalid token' });
-        }
-      } catch (error) {
-        return res.status(401).json({ message: 'Invalid token' });
-      }
-
-      const { foodId, quantity, mealType, date } = req.body;
-
-      if (!foodId || !quantity || !mealType) {
-        return res.status(400).json({ 
-          message: 'Food ID, quantity, and meal type are required' 
-        });
-      }
-
-      if (!['breakfast', 'lunch', 'dinner', 'snacks'].includes(mealType)) {
-        return res.status(400).json({ 
-          message: 'Invalid meal type' 
-        });
-      }
-
-      const food = await Food.findById(foodId);
-      if (!food) {
-        return res.status(404).json({ message: 'Food not found' });
-      }
-
-      const queryDate = date ? new Date(date) : new Date();
-      const startOfDay = new Date(queryDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(queryDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      let meal = await Meal.findOne({
-        user: user._id,
-        date: { $gte: startOfDay, $lte: endOfDay }
-      });
-
-      if (!meal) {
-        meal = new Meal({
-          user: user._id,
-          date: queryDate,
-          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] }
-        });
-      }
-
-      meal.meals[mealType].push({
-        food: foodId,
-        quantity: parseFloat(quantity),
-        unit: 'g'
-      });
-
-      await meal.save();
-      await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
-
-      return res.json({
-        message: 'Food added to meal successfully',
-        meal
-      });
-    }
-
-    // Remove food from meal
-    if (method === 'DELETE' && path.startsWith('/api/meals/')) {
-      const pathParts = path.split('/');
-      if (pathParts.length === 5 && pathParts[4] === 'remove') {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return res.status(401).json({ message: 'No token provided' });
-        }
-
-        let user;
-        try {
-          const token = authHeader.substring(7);
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-          user = await User.findById(decoded.userId);
-          if (!user) {
-            return res.status(401).json({ message: 'Invalid token' });
-          }
-        } catch (error) {
-          return res.status(401).json({ message: 'Invalid token' });
-        }
-
-        const { mealType, itemIndex, date } = req.body;
-
-        const queryDate = date ? new Date(date) : new Date();
-        const startOfDay = new Date(queryDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(queryDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const meal = await Meal.findOne({
-          user: user._id,
-          date: { $gte: startOfDay, $lte: endOfDay }
-        });
-
-        if (!meal) {
-          return res.status(404).json({ message: 'Meal not found' });
-        }
-
-        if (meal.meals[mealType] && meal.meals[mealType][itemIndex]) {
-          meal.meals[mealType].splice(itemIndex, 1);
-          await meal.save();
-          await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
-        }
-
-        return res.json({
-          message: 'Food removed from meal successfully',
-          meal
-        });
-      }
-    }
 
     // Update user profile
     if (method === 'PUT' && path === '/api/users/profile') {
