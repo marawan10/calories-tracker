@@ -40,6 +40,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Debug endpoint to check admin user
+app.get('/api/debug/admin', async (req, res) => {
+  try {
+    await connectToDatabase();
+    const adminUser = await User.findOne({ email: 'admin@gmail.com' });
+    res.json({
+      adminExists: !!adminUser,
+      adminData: adminUser ? {
+        id: adminUser._id,
+        email: adminUser.email,
+        role: adminUser.role,
+        hasPassword: !!adminUser.password
+      } : null
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
