@@ -86,26 +86,37 @@ app.use('*', (req, res) => {
 let isConnected = false;
 
 const connectToDatabase = async () => {
-  if (isConnected) {
+  if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
 
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/kaloriApp';
     
+    // Optimize connection for serverless
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      bufferCommands: false, // Disable mongoose buffering
+      bufferMaxEntries: 0, // Disable mongoose buffering
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      minPoolSize: 5, // Maintain a minimum of 5 socket connections
     });
     
     isConnected = true;
     console.log(`✅ Connected to MongoDB: ${mongoUri}`);
     
-    // Seed initial data if needed
-    await seedInitialFoods();
-    await ensureAdminUser();
+    // Seed initial data if needed (only run once)
+    if (!global.seedingComplete) {
+      await seedInitialFoods();
+      await ensureAdminUser();
+      global.seedingComplete = true;
+    }
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
+    isConnected = false;
     throw error;
   }
 };
