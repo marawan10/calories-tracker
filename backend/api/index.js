@@ -161,6 +161,11 @@ const mealSchema = new mongoose.Schema({
 // Calculate total nutrition before saving
 mealSchema.pre('save', async function(next) {
   try {
+    // Skip recalculation if totalNutrition is already set (to avoid conflicts)
+    if (this.totalNutrition && this.totalNutrition.calories !== undefined) {
+      return next();
+    }
+
     let totalNutrition = {
       calories: 0, protein: 0, carbs: 0, fat: 0,
       fiber: 0, sugar: 0, sodium: 0
@@ -168,17 +173,29 @@ mealSchema.pre('save', async function(next) {
 
     // Calculate nutrition for all meal types
     for (const mealType of ['breakfast', 'lunch', 'dinner', 'snacks']) {
-      for (const item of this.meals[mealType]) {
-        const food = await Food.findById(item.food);
-        if (food) {
-          const multiplier = item.quantity / 100; // Assuming nutrition is per 100g
-          totalNutrition.calories += food.nutrition.calories * multiplier;
-          totalNutrition.protein += food.nutrition.protein * multiplier;
-          totalNutrition.carbs += food.nutrition.carbs * multiplier;
-          totalNutrition.fat += food.nutrition.fat * multiplier;
-          totalNutrition.fiber += (food.nutrition.fiber || 0) * multiplier;
-          totalNutrition.sugar += (food.nutrition.sugar || 0) * multiplier;
-          totalNutrition.sodium += (food.nutrition.sodium || 0) * multiplier;
+      if (this.meals[mealType] && Array.isArray(this.meals[mealType])) {
+        for (const item of this.meals[mealType]) {
+          // If item already has calculated nutrition, use it
+          if (item.calories !== undefined) {
+            totalNutrition.calories += item.calories || 0;
+            totalNutrition.protein += item.protein || 0;
+            totalNutrition.carbs += item.carbs || 0;
+            totalNutrition.fat += item.fat || 0;
+          } else if (item.food && (item.weight || item.quantity)) {
+            // Fallback: calculate from food data
+            const food = await Food.findById(item.food);
+            if (food) {
+              const weight = item.weight || item.quantity || 100;
+              const multiplier = weight / 100; // Nutrition is per 100g
+              totalNutrition.calories += (food.nutrition?.calories || 0) * multiplier;
+              totalNutrition.protein += (food.nutrition?.protein || 0) * multiplier;
+              totalNutrition.carbs += (food.nutrition?.carbs || 0) * multiplier;
+              totalNutrition.fat += (food.nutrition?.fat || 0) * multiplier;
+              totalNutrition.fiber += (food.nutrition?.fiber || 0) * multiplier;
+              totalNutrition.sugar += (food.nutrition?.sugar || 0) * multiplier;
+              totalNutrition.sodium += (food.nutrition?.sodium || 0) * multiplier;
+            }
+          }
         }
       }
     }
@@ -186,6 +203,7 @@ mealSchema.pre('save', async function(next) {
     this.totalNutrition = totalNutrition;
     next();
   } catch (error) {
+    console.error('Meal pre-save middleware error:', error);
     next(error);
   }
 });
@@ -930,24 +948,41 @@ module.exports = async (req, res) => {
 
         // Use provided date or today
         const mealDate = date ? new Date(date) : new Date();
+        console.log('Processing meal for date:', mealDate);
+        
         const startOfDay = new Date(mealDate);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(mealDate);
         endOfDay.setHours(23, 59, 59, 999);
 
+        console.log('Date range:', { startOfDay, endOfDay });
+
         // Find or create meal document for the day
-        let meal = await Meal.findOne({
-          user: user._id,
-          date: { $gte: startOfDay, $lte: endOfDay }
-        });
+        let meal;
+        try {
+          meal = await Meal.findOne({
+            user: user._id,
+            date: { $gte: startOfDay, $lte: endOfDay }
+          });
+          console.log('Found existing meal:', !!meal);
+        } catch (findError) {
+          console.error('Error finding meal:', findError);
+          meal = null;
+        }
 
         if (!meal) {
-          meal = new Meal({
-            user: user._id,
-            date: mealDate,
-            meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-            totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
-          });
+          console.log('Creating new meal document');
+          try {
+            meal = new Meal({
+              user: user._id,
+              date: mealDate,
+              meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+              totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+            });
+          } catch (createError) {
+            console.error('Error creating meal:', createError);
+            throw createError;
+          }
         }
 
         // Ensure meals object exists and has all meal types
@@ -964,14 +999,27 @@ module.exports = async (req, res) => {
         const processedItems = [];
         let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
 
-        for (const item of items) {
+        console.log('Processing items:', items.length);
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          console.log(`Processing item ${i}:`, { food: item.food, weight: item.weight });
+          
           if (!item.food || !item.weight || item.weight <= 0) {
+            console.log(`Skipping invalid item ${i}`);
             continue;
           }
 
-          const food = await Food.findById(item.food);
-          if (!food) {
-            console.log('Food not found:', item.food);
+          let food;
+          try {
+            food = await Food.findById(item.food);
+            if (!food) {
+              console.log('Food not found:', item.food);
+              continue;
+            }
+            console.log('Found food:', food.name);
+          } catch (foodError) {
+            console.error('Error finding food:', foodError);
             continue;
           }
 
@@ -984,6 +1032,8 @@ module.exports = async (req, res) => {
             carbs: (food.nutrition?.carbs || 0) * multiplier,
             fat: (food.nutrition?.fat || 0) * multiplier
           };
+
+          console.log('Calculated nutrition:', itemNutrition);
 
           processedItems.push({
             food: food._id,
@@ -999,6 +1049,8 @@ module.exports = async (req, res) => {
           totalCarbs += itemNutrition.carbs;
           totalFat += itemNutrition.fat;
         }
+
+        console.log('Processed items count:', processedItems.length);
 
         if (processedItems.length === 0) {
           return res.status(400).json({ message: 'No valid food items found' });
@@ -1030,10 +1082,25 @@ module.exports = async (req, res) => {
         });
 
         meal.notes = notes || '';
-        await meal.save();
+        
+        console.log('Attempting to save meal...');
+        try {
+          await meal.save();
+          console.log('Meal saved to database');
+        } catch (saveError) {
+          console.error('Error saving meal:', saveError);
+          throw saveError;
+        }
 
         // Populate food details for response
-        await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+        console.log('Populating food details...');
+        try {
+          await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+          console.log('Food details populated');
+        } catch (populateError) {
+          console.error('Error populating food details:', populateError);
+          // Continue without population if it fails
+        }
 
         console.log('Meal saved successfully');
         return res.json({
@@ -1291,6 +1358,86 @@ module.exports = async (req, res) => {
           dailyGoals: user.dailyGoals,
           preferences: user.preferences
         }
+      });
+    }
+
+    // Get user goals
+    if (method === 'GET' && path === '/api/users/goals') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      return res.json({
+        goals: user.dailyGoals || {
+          calories: 2000,
+          protein: 150,
+          carbs: 250,
+          fat: 65
+        }
+      });
+    }
+
+    // Update user goals
+    if (method === 'PUT' && path === '/api/users/goals') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { calories, protein, carbs, fat } = req.body;
+
+      // Validate goals
+      if (calories && (calories < 800 || calories > 5000)) {
+        return res.status(400).json({ message: 'Calories must be between 800 and 5000' });
+      }
+      if (protein && (protein < 10 || protein > 500)) {
+        return res.status(400).json({ message: 'Protein must be between 10 and 500g' });
+      }
+      if (carbs && (carbs < 10 || carbs > 800)) {
+        return res.status(400).json({ message: 'Carbs must be between 10 and 800g' });
+      }
+      if (fat && (fat < 10 || fat > 300)) {
+        return res.status(400).json({ message: 'Fat must be between 10 and 300g' });
+      }
+
+      // Update goals
+      user.dailyGoals = {
+        calories: calories || user.dailyGoals?.calories || 2000,
+        protein: protein || user.dailyGoals?.protein || 150,
+        carbs: carbs || user.dailyGoals?.carbs || 250,
+        fat: fat || user.dailyGoals?.fat || 65
+      };
+
+      await user.save();
+
+      return res.json({
+        message: 'Goals updated successfully',
+        goals: user.dailyGoals
       });
     }
 
