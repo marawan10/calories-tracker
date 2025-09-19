@@ -782,13 +782,39 @@ module.exports = async (req, res) => {
         await meal.save();
       }
 
+      // Transform meal data to match frontend expectations
+      const mealResponse = meal || {
+        user: user._id,
+        date: queryDate,
+        meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+        totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+      };
+
+      // Convert to meals array format that frontend expects
+      const mealsArray = [];
+      if (meal && meal.meals) {
+        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
+          if (meal.meals[mealType] && Array.isArray(meal.meals[mealType]) && meal.meals[mealType].length > 0) {
+            mealsArray.push({
+              _id: meal._id + '_' + mealType,
+              mealType,
+              items: meal.meals[mealType],
+              totals: {
+                calories: meal.meals[mealType].reduce((sum, item) => sum + (item.calories || 0), 0),
+                protein: meal.meals[mealType].reduce((sum, item) => sum + (item.protein || 0), 0),
+                carbs: meal.meals[mealType].reduce((sum, item) => sum + (item.carbs || 0), 0),
+                fat: meal.meals[mealType].reduce((sum, item) => sum + (item.fat || 0), 0)
+              },
+              date: meal.date,
+              user: meal.user
+            });
+          }
+        });
+      }
+
       return res.json({ 
-        meal: meal || {
-          user: user._id,
-          date: queryDate,
-          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-          totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
-        }
+        meal: mealResponse,
+        meals: mealsArray
       });
     }
 
