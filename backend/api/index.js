@@ -502,13 +502,13 @@ module.exports = async (req, res) => {
         .sort({ name: 1 });
 
       return res.json({
-        foods,
-        total: totalCount,
+        foods: foods || [],
+        total: totalCount || 0,
         pagination: {
-          total: totalCount,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          pages: Math.ceil(totalCount / parseInt(limit))
+          total: totalCount || 0,
+          page: parseInt(page) || 1,
+          limit: parseInt(limit) || 100,
+          pages: Math.ceil((totalCount || 0) / parseInt(limit)) || 1
         }
       });
     }
@@ -727,7 +727,14 @@ module.exports = async (req, res) => {
         await meal.save();
       }
 
-      return res.json({ meal });
+      return res.json({ 
+        meal: meal || {
+          user: user._id,
+          date: queryDate,
+          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+          totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+        }
+      });
     }
 
     // Get meal statistics for date range
@@ -765,41 +772,44 @@ module.exports = async (req, res) => {
       const totalCalories = meals.reduce((sum, meal) => sum + meal.totalNutrition.calories, 0);
       const avgCalories = meals.length > 0 ? totalCalories / meals.length : 0;
 
-      // Get frequent foods
+      // Get frequent foods with proper error handling
       const foodFrequency = {};
-      meals.forEach(meal => {
-        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
-          meal.meals[mealType].forEach(item => {
-            if (item.food) {
-              const foodId = item.food._id.toString();
-              foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1;
-            }
+      (meals || []).forEach(meal => {
+        if (meal && meal.meals) {
+          ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
+            const mealItems = meal.meals[mealType] || [];
+            mealItems.forEach(item => {
+              if (item && item.food && item.food._id) {
+                const foodId = item.food._id.toString();
+                foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1;
+              }
+            });
           });
-        });
+        }
       });
 
       const frequentFoods = Object.entries(foodFrequency)
         .sort(([,a], [,b]) => b - a)
         .slice(0, 10)
         .map(([foodId, count]) => {
-          const food = meals.flatMap(meal => 
+          const food = (meals || []).flatMap(meal => 
             ['breakfast', 'lunch', 'dinner', 'snacks'].flatMap(type => 
-              meal.meals[type].filter(item => item.food && item.food._id.toString() === foodId)
+              (meal?.meals?.[type] || []).filter(item => item?.food?._id?.toString() === foodId)
             )
           )[0]?.food;
-          return { food, count };
+          return food ? { food, count } : null;
         })
-        .filter(item => item.food);
+        .filter(item => item && item.food);
 
       return res.json({
         stats: {
-          totalMeals: meals.length,
-          totalCalories,
-          avgCalories: Math.round(avgCalories),
+          totalMeals: meals?.length || 0,
+          totalCalories: totalCalories || 0,
+          avgCalories: Math.round(avgCalories) || 0,
           dateRange: { startDate: start, endDate: end }
         },
-        meals,
-        frequentFoods
+        meals: meals || [],
+        frequentFoods: frequentFoods || []
       });
     }
 
@@ -1008,14 +1018,14 @@ module.exports = async (req, res) => {
 
       return res.json({
         stats: {
-          totalMeals,
-          totalFoodsCreated,
-          recentMeals: meals.length,
-          avgCaloriesPerDay: meals.length > 0 
-            ? meals.reduce((sum, meal) => sum + meal.totalNutrition.calories, 0) / meals.length 
+          totalMeals: totalMeals || 0,
+          totalFoodsCreated: totalFoodsCreated || 0,
+          recentMeals: meals?.length || 0,
+          avgCaloriesPerDay: meals?.length > 0 
+            ? Math.round(meals.reduce((sum, meal) => sum + (meal.totalNutrition?.calories || 0), 0) / meals.length)
             : 0
         },
-        recentMeals: meals.slice(0, 5)
+        recentMeals: meals?.slice(0, 5) || []
       });
     }
 
@@ -1048,12 +1058,12 @@ module.exports = async (req, res) => {
       const totalUsers = await User.countDocuments();
 
       return res.json({
-        users,
+        users: users || [],
         pagination: {
-          total: totalUsers,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          pages: Math.ceil(totalUsers / parseInt(limit))
+          total: totalUsers || 0,
+          page: parseInt(page) || 1,
+          limit: parseInt(limit) || 20,
+          pages: Math.ceil((totalUsers || 0) / parseInt(limit)) || 1
         }
       });
     }
@@ -1091,11 +1101,11 @@ module.exports = async (req, res) => {
 
       return res.json({
         stats: {
-          totalUsers,
-          totalFoods,
-          totalMeals,
-          adminUsers,
-          recentUsers
+          totalUsers: totalUsers || 0,
+          totalFoods: totalFoods || 0,
+          totalMeals: totalMeals || 0,
+          adminUsers: adminUsers || 0,
+          recentUsers: recentUsers || 0
         }
       });
     }
@@ -1224,9 +1234,31 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('API Error:', error);
-    return res.status(500).json({ 
+    
+    // Return safe error response with expected structure
+    const errorResponse = { 
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    };
+
+    // Add safe defaults for common endpoints
+    if (path === '/api/foods') {
+      errorResponse.foods = [];
+      errorResponse.total = 0;
+      errorResponse.pagination = { total: 0, page: 1, limit: 100, pages: 1 };
+    } else if (path.includes('/api/meals')) {
+      errorResponse.meal = {
+        meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+        totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+      };
+      errorResponse.meals = [];
+      errorResponse.frequentFoods = [];
+      errorResponse.stats = { totalMeals: 0, totalCalories: 0, avgCalories: 0 };
+    } else if (path.includes('/api/admin')) {
+      errorResponse.users = [];
+      errorResponse.stats = { totalUsers: 0, totalFoods: 0, totalMeals: 0, adminUsers: 0, recentUsers: 0 };
+    }
+
+    return res.status(500).json(errorResponse);
   }
 };
