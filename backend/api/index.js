@@ -45,6 +45,39 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
+// Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor Equation
+userSchema.methods.calculateBMR = function() {
+  const { age, gender, height, weight } = this.profile;
+  
+  if (!age || !height || !weight || !gender) return null;
+  
+  let bmr;
+  if (gender === 'male') {
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+  } else {
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+  }
+  
+  return Math.round(bmr);
+};
+
+// Calculate daily calorie needs based on activity level
+userSchema.methods.calculateDailyCalories = function() {
+  const bmr = this.calculateBMR();
+  if (!bmr) return null;
+  
+  const activityMultipliers = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+    very_active: 1.9
+  };
+  
+  const multiplier = activityMultipliers[this.profile.activityLevel] || 1.55;
+  return Math.round(bmr * multiplier);
+};
+
 // Remove password from JSON output
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
@@ -52,8 +85,113 @@ userSchema.methods.toJSON = function() {
   return user;
 };
 
-// Create model
+// Create User model
 const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+// Food Schema
+const foodSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  nameAr: { type: String, trim: true },
+  category: { 
+    type: String, 
+    required: true,
+    enum: ['fruits', 'vegetables', 'grains', 'protein', 'dairy', 'nuts_seeds', 'oils_fats', 'beverages', 'sweets', 'snacks', 'prepared_foods', 'other'],
+    default: 'other'
+  },
+  nutrition: {
+    calories: { type: Number, required: true, min: 0 },
+    protein: { type: Number, required: true, min: 0 },
+    carbs: { type: Number, required: true, min: 0 },
+    fat: { type: Number, required: true, min: 0 },
+    fiber: { type: Number, default: 0, min: 0 },
+    sugar: { type: Number, default: 0, min: 0 },
+    sodium: { type: Number, default: 0, min: 0 }
+  },
+  servingSize: {
+    amount: { type: Number, default: 100, min: 0 },
+    unit: { type: String, default: 'g' }
+  },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  isPublic: { type: Boolean, default: true },
+  isVerified: { type: Boolean, default: false },
+  per100g: { type: Boolean, default: true },
+  description: { type: String, trim: true }
+}, { timestamps: true });
+
+// Create Food model
+const Food = mongoose.models.Food || mongoose.model('Food', foodSchema);
+
+// Meal Schema
+const mealSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  date: { type: Date, required: true, default: Date.now },
+  meals: {
+    breakfast: [{
+      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
+      quantity: { type: Number, required: true, min: 0 },
+      unit: { type: String, default: 'g' }
+    }],
+    lunch: [{
+      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
+      quantity: { type: Number, required: true, min: 0 },
+      unit: { type: String, default: 'g' }
+    }],
+    dinner: [{
+      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
+      quantity: { type: Number, required: true, min: 0 },
+      unit: { type: String, default: 'g' }
+    }],
+    snacks: [{
+      food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
+      quantity: { type: Number, required: true, min: 0 },
+      unit: { type: String, default: 'g' }
+    }]
+  },
+  totalNutrition: {
+    calories: { type: Number, default: 0 },
+    protein: { type: Number, default: 0 },
+    carbs: { type: Number, default: 0 },
+    fat: { type: Number, default: 0 },
+    fiber: { type: Number, default: 0 },
+    sugar: { type: Number, default: 0 },
+    sodium: { type: Number, default: 0 }
+  }
+}, { timestamps: true });
+
+// Calculate total nutrition before saving
+mealSchema.pre('save', async function(next) {
+  try {
+    let totalNutrition = {
+      calories: 0, protein: 0, carbs: 0, fat: 0,
+      fiber: 0, sugar: 0, sodium: 0
+    };
+
+    // Calculate nutrition for all meal types
+    for (const mealType of ['breakfast', 'lunch', 'dinner', 'snacks']) {
+      for (const item of this.meals[mealType]) {
+        const food = await Food.findById(item.food);
+        if (food) {
+          const multiplier = item.quantity / 100; // Assuming nutrition is per 100g
+          totalNutrition.calories += food.nutrition.calories * multiplier;
+          totalNutrition.protein += food.nutrition.protein * multiplier;
+          totalNutrition.carbs += food.nutrition.carbs * multiplier;
+          totalNutrition.fat += food.nutrition.fat * multiplier;
+          totalNutrition.fiber += (food.nutrition.fiber || 0) * multiplier;
+          totalNutrition.sugar += (food.nutrition.sugar || 0) * multiplier;
+          totalNutrition.sodium += (food.nutrition.sodium || 0) * multiplier;
+        }
+      }
+    }
+
+    this.totalNutrition = totalNutrition;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create Meal model
+const Meal = mongoose.models.Meal || mongoose.model('Meal', mealSchema);
 
 // Database connection
 let isConnected = false;
@@ -83,6 +221,37 @@ async function connectToDatabase() {
         });
         await admin.save();
         console.log('👑 Admin user created');
+        
+        // Create some initial foods
+        const foodCount = await Food.countDocuments();
+        if (foodCount === 0) {
+          const initialFoods = [
+            { name: 'Apple', nameAr: 'تفاح', category: 'fruits', nutrition: { calories: 52, protein: 0.3, carbs: 14, fat: 0.2 } },
+            { name: 'Banana', nameAr: 'موز', category: 'fruits', nutrition: { calories: 96, protein: 1.3, carbs: 27, fat: 0.3 } },
+            { name: 'Rice', nameAr: 'أرز', category: 'grains', nutrition: { calories: 130, protein: 2.7, carbs: 28, fat: 0.3 } },
+            { name: 'Chicken breast', nameAr: 'صدر دجاج', category: 'protein', nutrition: { calories: 165, protein: 31, carbs: 0, fat: 3.6 } },
+            { name: 'Egg', nameAr: 'بيض', category: 'protein', nutrition: { calories: 155, protein: 13, carbs: 1, fat: 11 } },
+            { name: 'Bread', nameAr: 'خبز', category: 'grains', nutrition: { calories: 265, protein: 9, carbs: 49, fat: 3.2 } },
+            { name: 'Potato', nameAr: 'بطاطس', category: 'vegetables', nutrition: { calories: 77, protein: 2, carbs: 17, fat: 0.1 } },
+            { name: 'Tomato', nameAr: 'طماطم', category: 'vegetables', nutrition: { calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2 } },
+            { name: 'Cucumber', nameAr: 'خيار', category: 'vegetables', nutrition: { calories: 16, protein: 0.6, carbs: 4, fat: 0.1 } },
+            { name: 'Milk', nameAr: 'حليب', category: 'dairy', nutrition: { calories: 42, protein: 3.4, carbs: 5, fat: 1 } }
+          ];
+          
+          for (const foodData of initialFoods) {
+            const food = new Food({
+              ...foodData,
+              servingSize: { amount: 100, unit: 'g' },
+              createdBy: admin._id,
+              isPublic: true,
+              isVerified: true,
+              per100g: true,
+              description: 'Initial seed food (per 100g)'
+            });
+            await food.save();
+          }
+          console.log('🌱 Initial foods created');
+        }
       }
       global.adminCreated = true;
     }
@@ -288,8 +457,671 @@ module.exports = async (req, res) => {
           hasPassword: !!adminUser.password,
           createdAt: adminUser.createdAt
         } : null,
-        totalUsers: await User.countDocuments()
+        totalUsers: await User.countDocuments(),
+        totalFoods: await Food.countDocuments()
       });
+    }
+
+    // Get Foods endpoint
+    if (method === 'GET' && path === '/api/foods') {
+      const { search, category, limit = 100, page = 1 } = req.query || {};
+      
+      let query = {};
+      
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { nameAr: { $regex: search, $options: 'i' } }
+        ];
+      }
+      
+      if (category) {
+        query.category = category;
+      }
+
+      const totalCount = await Food.countDocuments(query);
+      const foods = await Food.find(query)
+        .populate('createdBy', 'name email')
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit))
+        .sort({ name: 1 });
+
+      return res.json({
+        foods,
+        total: totalCount,
+        pagination: {
+          total: totalCount,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(totalCount / parseInt(limit))
+        }
+      });
+    }
+
+    // Create Food endpoint
+    if (method === 'POST' && path === '/api/foods') {
+      // Get user from token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { name, nameAr, category, nutrition, servingSize, description, isPublic } = req.body;
+
+      // Validation
+      if (!name || !category || !nutrition) {
+        return res.status(400).json({ 
+          message: 'Name, category, and nutrition are required' 
+        });
+      }
+
+      if (!nutrition.calories || nutrition.calories < 0) {
+        return res.status(400).json({ 
+          message: 'Valid calories value is required' 
+        });
+      }
+
+      const food = new Food({
+        name: name.trim(),
+        nameAr: nameAr?.trim(),
+        category,
+        nutrition: {
+          calories: parseFloat(nutrition.calories) || 0,
+          protein: parseFloat(nutrition.protein) || 0,
+          carbs: parseFloat(nutrition.carbs) || 0,
+          fat: parseFloat(nutrition.fat) || 0,
+          fiber: parseFloat(nutrition.fiber) || 0,
+          sugar: parseFloat(nutrition.sugar) || 0,
+          sodium: parseFloat(nutrition.sodium) || 0
+        },
+        servingSize: servingSize || { amount: 100, unit: 'g' },
+        description: description?.trim(),
+        isPublic: isPublic !== false,
+        createdBy: user._id,
+        isVerified: user.role === 'admin'
+      });
+
+      await food.save();
+      await food.populate('createdBy', 'name email');
+
+      return res.status(201).json({
+        message: 'Food created successfully',
+        food
+      });
+    }
+
+    // Update Food endpoint
+    if (method === 'PUT' && path.startsWith('/api/foods/')) {
+      const foodId = path.split('/')[3];
+      
+      // Get user from token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const food = await Food.findById(foodId);
+      if (!food) {
+        return res.status(404).json({ message: 'Food not found' });
+      }
+
+      // Check permissions
+      if (user.role !== 'admin' && food.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to update this food' });
+      }
+
+      const { name, nameAr, category, nutrition, servingSize, description, isPublic } = req.body;
+
+      // Update fields
+      if (name) food.name = name.trim();
+      if (nameAr !== undefined) food.nameAr = nameAr?.trim();
+      if (category) food.category = category;
+      if (nutrition) {
+        food.nutrition = {
+          calories: parseFloat(nutrition.calories) || food.nutrition.calories,
+          protein: parseFloat(nutrition.protein) || food.nutrition.protein,
+          carbs: parseFloat(nutrition.carbs) || food.nutrition.carbs,
+          fat: parseFloat(nutrition.fat) || food.nutrition.fat,
+          fiber: parseFloat(nutrition.fiber) || food.nutrition.fiber,
+          sugar: parseFloat(nutrition.sugar) || food.nutrition.sugar,
+          sodium: parseFloat(nutrition.sodium) || food.nutrition.sodium
+        };
+      }
+      if (servingSize) food.servingSize = servingSize;
+      if (description !== undefined) food.description = description?.trim();
+      if (isPublic !== undefined) food.isPublic = isPublic;
+
+      await food.save();
+      await food.populate('createdBy', 'name email');
+
+      return res.json({
+        message: 'Food updated successfully',
+        food
+      });
+    }
+
+    // Delete Food endpoint
+    if (method === 'DELETE' && path.startsWith('/api/foods/')) {
+      const foodId = path.split('/')[3];
+      
+      // Get user from token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const food = await Food.findById(foodId);
+      if (!food) {
+        return res.status(404).json({ message: 'Food not found' });
+      }
+
+      // Check permissions
+      if (user.role !== 'admin' && food.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to delete this food' });
+      }
+
+      await Food.findByIdAndDelete(foodId);
+
+      return res.json({
+        message: 'Food deleted successfully'
+      });
+    }
+
+    // Get user's meals for a specific date
+    if (method === 'GET' && path === '/api/meals') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { date } = req.query;
+      const queryDate = date ? new Date(date) : new Date();
+      
+      // Set to start and end of day
+      const startOfDay = new Date(queryDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      let meal = await Meal.findOne({
+        user: user._id,
+        date: { $gte: startOfDay, $lte: endOfDay }
+      }).populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+
+      if (!meal) {
+        meal = new Meal({
+          user: user._id,
+          date: queryDate,
+          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] }
+        });
+        await meal.save();
+      }
+
+      return res.json({ meal });
+    }
+
+    // Add food to meal
+    if (method === 'POST' && path === '/api/meals/add') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { foodId, quantity, mealType, date } = req.body;
+
+      if (!foodId || !quantity || !mealType) {
+        return res.status(400).json({ 
+          message: 'Food ID, quantity, and meal type are required' 
+        });
+      }
+
+      if (!['breakfast', 'lunch', 'dinner', 'snacks'].includes(mealType)) {
+        return res.status(400).json({ 
+          message: 'Invalid meal type' 
+        });
+      }
+
+      const food = await Food.findById(foodId);
+      if (!food) {
+        return res.status(404).json({ message: 'Food not found' });
+      }
+
+      const queryDate = date ? new Date(date) : new Date();
+      const startOfDay = new Date(queryDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      let meal = await Meal.findOne({
+        user: user._id,
+        date: { $gte: startOfDay, $lte: endOfDay }
+      });
+
+      if (!meal) {
+        meal = new Meal({
+          user: user._id,
+          date: queryDate,
+          meals: { breakfast: [], lunch: [], dinner: [], snacks: [] }
+        });
+      }
+
+      meal.meals[mealType].push({
+        food: foodId,
+        quantity: parseFloat(quantity),
+        unit: 'g'
+      });
+
+      await meal.save();
+      await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+
+      return res.json({
+        message: 'Food added to meal successfully',
+        meal
+      });
+    }
+
+    // Remove food from meal
+    if (method === 'DELETE' && path.startsWith('/api/meals/')) {
+      const pathParts = path.split('/');
+      if (pathParts.length === 5 && pathParts[4] === 'remove') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ message: 'No token provided' });
+        }
+
+        let user;
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+          user = await User.findById(decoded.userId);
+          if (!user) {
+            return res.status(401).json({ message: 'Invalid token' });
+          }
+        } catch (error) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+
+        const { mealType, itemIndex, date } = req.body;
+
+        const queryDate = date ? new Date(date) : new Date();
+        const startOfDay = new Date(queryDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(queryDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const meal = await Meal.findOne({
+          user: user._id,
+          date: { $gte: startOfDay, $lte: endOfDay }
+        });
+
+        if (!meal) {
+          return res.status(404).json({ message: 'Meal not found' });
+        }
+
+        if (meal.meals[mealType] && meal.meals[mealType][itemIndex]) {
+          meal.meals[mealType].splice(itemIndex, 1);
+          await meal.save();
+          await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+        }
+
+        return res.json({
+          message: 'Food removed from meal successfully',
+          meal
+        });
+      }
+    }
+
+    // Update user profile
+    if (method === 'PUT' && path === '/api/users/profile') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { name, profile, dailyGoals, preferences } = req.body;
+
+      if (name) user.name = name.trim();
+      if (profile) {
+        user.profile = { ...user.profile, ...profile };
+      }
+      if (dailyGoals) {
+        user.dailyGoals = { ...user.dailyGoals, ...dailyGoals };
+      }
+      if (preferences) {
+        user.preferences = { ...user.preferences, ...preferences };
+      }
+
+      await user.save();
+
+      return res.json({
+        message: 'Profile updated successfully',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profile: user.profile,
+          dailyGoals: user.dailyGoals,
+          preferences: user.preferences
+        }
+      });
+    }
+
+    // Get user statistics
+    if (method === 'GET' && path === '/api/users/stats') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      // Get last 7 days of meals
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+
+      const meals = await Meal.find({
+        user: user._id,
+        date: { $gte: startDate, $lte: endDate }
+      }).sort({ date: -1 });
+
+      const totalMeals = await Meal.countDocuments({ user: user._id });
+      const totalFoodsCreated = await Food.countDocuments({ createdBy: user._id });
+
+      return res.json({
+        stats: {
+          totalMeals,
+          totalFoodsCreated,
+          recentMeals: meals.length,
+          avgCaloriesPerDay: meals.length > 0 
+            ? meals.reduce((sum, meal) => sum + meal.totalNutrition.calories, 0) / meals.length 
+            : 0
+        },
+        recentMeals: meals.slice(0, 5)
+      });
+    }
+
+    // Admin: Get all users
+    if (method === 'GET' && path === '/api/admin/users') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user || user.role !== 'admin') {
+          return res.status(403).json({ message: 'Admin access required' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { page = 1, limit = 20 } = req.query;
+      const users = await User.find({})
+        .select('-password')
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit))
+        .sort({ createdAt: -1 });
+
+      const totalUsers = await User.countDocuments();
+
+      return res.json({
+        users,
+        pagination: {
+          total: totalUsers,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(totalUsers / parseInt(limit))
+        }
+      });
+    }
+
+    // Admin: Get system stats
+    if (method === 'GET' && path === '/api/admin/stats') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user || user.role !== 'admin') {
+          return res.status(403).json({ message: 'Admin access required' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const totalUsers = await User.countDocuments();
+      const totalFoods = await Food.countDocuments();
+      const totalMeals = await Meal.countDocuments();
+      const adminUsers = await User.countDocuments({ role: 'admin' });
+
+      // Get recent registrations (last 7 days)
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const recentUsers = await User.countDocuments({ 
+        createdAt: { $gte: weekAgo } 
+      });
+
+      return res.json({
+        stats: {
+          totalUsers,
+          totalFoods,
+          totalMeals,
+          adminUsers,
+          recentUsers
+        }
+      });
+    }
+
+    // Calculate BMR/TDEE for user
+    if (method === 'POST' && path === '/api/users/calculate-calories') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { age, gender, height, weight, activityLevel, goal } = req.body;
+
+      // Temporarily update profile for calculation
+      const tempProfile = {
+        ...user.profile,
+        age: age || user.profile.age,
+        gender: gender || user.profile.gender,
+        height: height || user.profile.height,
+        weight: weight || user.profile.weight,
+        activityLevel: activityLevel || user.profile.activityLevel,
+        goal: goal || user.profile.goal
+      };
+
+      // Create temporary user object for calculation
+      const tempUser = { profile: tempProfile };
+      tempUser.calculateBMR = userSchema.methods.calculateBMR;
+      tempUser.calculateDailyCalories = userSchema.methods.calculateDailyCalories;
+
+      const bmr = tempUser.calculateBMR();
+      const tdee = tempUser.calculateDailyCalories();
+
+      if (!bmr || !tdee) {
+        return res.status(400).json({ 
+          message: 'Unable to calculate. Please provide age, gender, height, weight, and activity level.' 
+        });
+      }
+
+      // Adjust calories based on goal
+      let targetCalories = tdee;
+      if (tempProfile.goal === 'lose_weight') {
+        targetCalories = Math.round(tdee * 0.8); // 20% deficit
+      } else if (tempProfile.goal === 'gain_weight') {
+        targetCalories = Math.round(tdee * 1.2); // 20% surplus
+      }
+
+      // Calculate macros (example distribution)
+      const protein = Math.round((targetCalories * 0.25) / 4); // 25% protein
+      const carbs = Math.round((targetCalories * 0.45) / 4);   // 45% carbs
+      const fat = Math.round((targetCalories * 0.30) / 9);     // 30% fat
+
+      return res.json({
+        calculations: {
+          bmr,
+          tdee,
+          targetCalories,
+          macros: { protein, carbs, fat }
+        },
+        profile: tempProfile
+      });
+    }
+
+    // Password reset request (basic implementation)
+    if (method === 'POST' && path === '/api/auth/forgot-password') {
+      const { email } = req.body;
+
+      if (!email || !isValidEmail(email)) {
+        return res.status(400).json({ message: 'Valid email is required' });
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        // Don't reveal if user exists or not
+        return res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+      }
+
+      // In a real app, you'd send an email with a reset token
+      // For now, just return success
+      return res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+    }
+
+    // Verify token endpoint
+    if (method === 'POST' && path === '/api/auth/verify-token') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ valid: false, message: 'No token provided' });
+      }
+
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        const user = await User.findById(decoded.userId);
+        
+        if (!user) {
+          return res.status(401).json({ valid: false, message: 'Invalid token' });
+        }
+
+        return res.json({
+          valid: true,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
+        });
+      } catch (error) {
+        return res.status(401).json({ valid: false, message: 'Invalid token' });
+      }
     }
 
     // Default response
