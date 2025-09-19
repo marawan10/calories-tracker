@@ -48,8 +48,6 @@ async function connectToDatabase() {
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 5000,
-      bufferCommands: false,
-      bufferMaxEntries: 0,
     });
     
     isConnected = true;
