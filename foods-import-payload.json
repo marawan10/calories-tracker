@@ -1,0 +1,1985 @@
+{
+  "foods": [
+    {
+      "name": "Ful Medames",
+      "nameAr": "فول مدمس",
+      "category": "protein",
+      "nutrition": {
+        "calories": 142,
+        "protein": 9,
+        "carbs": 13.5,
+        "fat": 5,
+        "fiber": 5.4,
+        "sodium": 30
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Falafel",
+      "nameAr": "طعمية",
+      "category": "protein",
+      "nutrition": {
+        "calories": 57,
+        "protein": 2.3,
+        "carbs": 5.4,
+        "fat": 3,
+        "fiber": 0.8,
+        "sodium": 50
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Egyptian Bread Half",
+      "nameAr": "وش عيش بلدي",
+      "category": "grains",
+      "nutrition": {
+        "calories": 150,
+        "protein": 4.5,
+        "carbs": 30,
+        "fat": 0.8,
+        "fiber": 2.5,
+        "sodium": 300
+      },
+      "servingSize": {
+        "amount": 0.5,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Egyptian Bread",
+      "nameAr": "عيش بلدي",
+      "category": "grains",
+      "nutrition": {
+        "calories": 270,
+        "protein": 9,
+        "carbs": 60,
+        "fat": 1.5,
+        "fiber": 5,
+        "sodium": 600
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Pita Bread",
+      "nameAr": "عيش شامي",
+      "category": "grains",
+      "nutrition": {
+        "calories": 165,
+        "protein": 5.5,
+        "carbs": 33.4,
+        "fat": 0.7,
+        "fiber": 1.3,
+        "sodium": 322
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Fino Bread",
+      "nameAr": "عيش فينو",
+      "category": "grains",
+      "nutrition": {
+        "calories": 231,
+        "protein": 7.1,
+        "carbs": 45.1,
+        "fat": 2.2,
+        "fiber": 1.9,
+        "sodium": 545
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Koshari",
+      "nameAr": "كشري",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 150,
+        "protein": 5.2,
+        "carbs": 28.5,
+        "fat": 2.1,
+        "fiber": 3.8,
+        "sodium": 380
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Molokhia",
+      "nameAr": "ملوخية",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 58,
+        "protein": 4.6,
+        "carbs": 10.9,
+        "fat": 0.4,
+        "fiber": 3.7,
+        "sodium": 4
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Bamia",
+      "nameAr": "بامية",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 33,
+        "protein": 1.9,
+        "carbs": 7.5,
+        "fat": 0.2,
+        "fiber": 3.2,
+        "sodium": 7
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "White Rice",
+      "nameAr": "أرز أبيض",
+      "category": "grains",
+      "nutrition": {
+        "calories": 130,
+        "protein": 2.7,
+        "carbs": 28,
+        "fat": 0.3,
+        "fiber": 0.4,
+        "sodium": 5
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Lentils",
+      "nameAr": "عدس",
+      "category": "protein",
+      "nutrition": {
+        "calories": 353,
+        "protein": 25.8,
+        "carbs": 60.1,
+        "fat": 1.1,
+        "fiber": 10.7,
+        "sodium": 6
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Chickpeas",
+      "nameAr": "حمص",
+      "category": "protein",
+      "nutrition": {
+        "calories": 378,
+        "protein": 20.5,
+        "carbs": 63,
+        "fat": 6,
+        "fiber": 12.2,
+        "sodium": 24
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "White Beans",
+      "nameAr": "فاصوليا بيضاء",
+      "category": "protein",
+      "nutrition": {
+        "calories": 333,
+        "protein": 23.4,
+        "carbs": 60.3,
+        "fat": 0.9,
+        "fiber": 15.2,
+        "sodium": 16
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Pasta",
+      "nameAr": "مكرونة",
+      "category": "grains",
+      "nutrition": {
+        "calories": 220,
+        "protein": 8.1,
+        "carbs": 43.2,
+        "fat": 1.1,
+        "fiber": 1.8,
+        "sodium": 6
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Chicken Breast",
+      "nameAr": "صدر فراخ",
+      "category": "protein",
+      "nutrition": {
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fat": 3.6,
+        "fiber": 0,
+        "sodium": 74
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Beef",
+      "nameAr": "لحم بقري",
+      "category": "protein",
+      "nutrition": {
+        "calories": 250,
+        "protein": 26,
+        "carbs": 0,
+        "fat": 15,
+        "fiber": 0,
+        "sodium": 72
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Lamb",
+      "nameAr": "لحم ضاني",
+      "category": "protein",
+      "nutrition": {
+        "calories": 294,
+        "protein": 25.6,
+        "carbs": 0,
+        "fat": 20.9,
+        "fiber": 0,
+        "sodium": 72
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Fish Fillet",
+      "nameAr": "فيليه سمك",
+      "category": "protein",
+      "nutrition": {
+        "calories": 206,
+        "protein": 22,
+        "carbs": 0,
+        "fat": 12,
+        "fiber": 0,
+        "sodium": 59
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Eggs",
+      "nameAr": "بيض",
+      "category": "protein",
+      "nutrition": {
+        "calories": 78,
+        "protein": 6.5,
+        "carbs": 0.6,
+        "fat": 5.5,
+        "fiber": 0,
+        "sodium": 62
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Whole Milk",
+      "nameAr": "لبن كامل الدسم",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 61,
+        "protein": 3.2,
+        "carbs": 4.8,
+        "fat": 3.3,
+        "fiber": 0,
+        "sodium": 44
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Low Fat Milk",
+      "nameAr": "لبن قليل الدسم",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 42,
+        "protein": 3.4,
+        "carbs": 5,
+        "fat": 1,
+        "fiber": 0,
+        "sodium": 44
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Yogurt",
+      "nameAr": "زبادي",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 61,
+        "protein": 3.5,
+        "carbs": 4.7,
+        "fat": 3.3,
+        "fiber": 0,
+        "sodium": 46
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "White Cheese",
+      "nameAr": "جبنة بيضاء",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 264,
+        "protein": 25,
+        "carbs": 1.3,
+        "fat": 17,
+        "fiber": 0,
+        "sodium": 621
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Rumi Cheese",
+      "nameAr": "جبنة رومي",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 393,
+        "protein": 35.8,
+        "carbs": 0.4,
+        "fat": 26.9,
+        "fiber": 0,
+        "sodium": 1809
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Cottage Cheese",
+      "nameAr": "جبنة قريش",
+      "category": "dairy",
+      "nutrition": {
+        "calories": 98,
+        "protein": 11.1,
+        "carbs": 3.4,
+        "fat": 4.3,
+        "fiber": 0,
+        "sodium": 364
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tahina",
+      "nameAr": "طحينة",
+      "category": "nuts_seeds",
+      "nutrition": {
+        "calories": 595,
+        "protein": 18.1,
+        "carbs": 21.2,
+        "fat": 53.8,
+        "fiber": 9.3,
+        "sodium": 115
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Halawa Tahini",
+      "nameAr": "حلاوة طحينية",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 469,
+        "protein": 12.9,
+        "carbs": 54,
+        "fat": 23.4,
+        "fiber": 5.1,
+        "sodium": 54
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Olive Oil",
+      "nameAr": "زيت زيتون",
+      "category": "oils_fats",
+      "nutrition": {
+        "calories": 884,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 100,
+        "fiber": 0,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sunflower Oil",
+      "nameAr": "زيت عباد الشمس",
+      "category": "oils_fats",
+      "nutrition": {
+        "calories": 884,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 100,
+        "fiber": 0,
+        "sodium": 0
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Butter",
+      "nameAr": "زبدة",
+      "category": "oils_fats",
+      "nutrition": {
+        "calories": 717,
+        "protein": 0.9,
+        "carbs": 0.1,
+        "fat": 81.1,
+        "fiber": 0,
+        "sodium": 643
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tomatoes",
+      "nameAr": "طماطم",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 18,
+        "protein": 0.9,
+        "carbs": 3.9,
+        "fat": 0.2,
+        "fiber": 1.2,
+        "sodium": 5
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Onions",
+      "nameAr": "بصل",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 40,
+        "protein": 1.1,
+        "carbs": 9.3,
+        "fat": 0.1,
+        "fiber": 1.7,
+        "sodium": 4
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Garlic",
+      "nameAr": "ثوم",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 149,
+        "protein": 6.4,
+        "carbs": 33.1,
+        "fat": 0.5,
+        "fiber": 2.1,
+        "sodium": 17
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Potatoes",
+      "nameAr": "بطاطس",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 77,
+        "protein": 2,
+        "carbs": 17.5,
+        "fat": 0.1,
+        "fiber": 2.2,
+        "sodium": 6
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sweet Potatoes",
+      "nameAr": "بطاطا",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 86,
+        "protein": 1.6,
+        "carbs": 20.1,
+        "fat": 0.1,
+        "fiber": 3,
+        "sodium": 54
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Carrots",
+      "nameAr": "جزر",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 41,
+        "protein": 0.9,
+        "carbs": 9.6,
+        "fat": 0.2,
+        "fiber": 2.8,
+        "sodium": 69
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Zucchini",
+      "nameAr": "كوسة",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 17,
+        "protein": 1.2,
+        "carbs": 3.1,
+        "fat": 0.3,
+        "fiber": 1,
+        "sodium": 8
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Eggplant",
+      "nameAr": "باذنجان",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 25,
+        "protein": 1,
+        "carbs": 5.9,
+        "fat": 0.2,
+        "fiber": 3,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Green Beans",
+      "nameAr": "فاصوليا خضراء",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 31,
+        "protein": 1.8,
+        "carbs": 7.1,
+        "fat": 0.1,
+        "fiber": 2.7,
+        "sodium": 6
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Green Peas",
+      "nameAr": "بسلة",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 81,
+        "protein": 5.4,
+        "carbs": 14.5,
+        "fat": 0.4,
+        "fiber": 5.7,
+        "sodium": 5
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Spinach",
+      "nameAr": "سبانخ",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 23,
+        "protein": 2.9,
+        "carbs": 3.6,
+        "fat": 0.4,
+        "fiber": 2.2,
+        "sodium": 79
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Apples",
+      "nameAr": "تفاح",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 95,
+        "protein": 0.5,
+        "carbs": 25.1,
+        "fat": 0.3,
+        "fiber": 4.4,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Bananas",
+      "nameAr": "موز",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 105,
+        "protein": 1.3,
+        "carbs": 27,
+        "fat": 0.4,
+        "fiber": 3.1,
+        "sodium": 1
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Oranges",
+      "nameAr": "برتقال",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 62,
+        "protein": 1.2,
+        "carbs": 15.4,
+        "fat": 0.2,
+        "fiber": 3.1,
+        "sodium": 0
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mangoes",
+      "nameAr": "مانجو",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 201,
+        "protein": 2.8,
+        "carbs": 50,
+        "fat": 1.3,
+        "fiber": 5.4,
+        "sodium": 3
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Grapes",
+      "nameAr": "عنب",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 62,
+        "protein": 0.6,
+        "carbs": 16,
+        "fat": 0.2,
+        "fiber": 0.9,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Watermelon",
+      "nameAr": "بطيخ",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 30,
+        "protein": 0.6,
+        "carbs": 7.6,
+        "fat": 0.2,
+        "fiber": 0.4,
+        "sodium": 1
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Dates",
+      "nameAr": "تمر",
+      "category": "fruits",
+      "nutrition": {
+        "calories": 20,
+        "protein": 0.2,
+        "carbs": 5.3,
+        "fat": 0,
+        "fiber": 0.6,
+        "sodium": 0
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tea",
+      "nameAr": "شاي",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0.3,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 3
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Coffee",
+      "nameAr": "قهوة",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 2,
+        "protein": 0.1,
+        "carbs": 0,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Karkade",
+      "nameAr": "كركديه",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 37,
+        "protein": 0.4,
+        "carbs": 7.4,
+        "fat": 0.6,
+        "fiber": 0,
+        "sodium": 3
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tamarind Juice",
+      "nameAr": "تمر هندي",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 42,
+        "protein": 0.1,
+        "carbs": 10.9,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sugar Cane Juice",
+      "nameAr": "عصير قصب",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 269,
+        "protein": 0,
+        "carbs": 73,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 17
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Pepsi Cola",
+      "nameAr": "بيبسي كولا",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 41,
+        "protein": 0,
+        "carbs": 10.6,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 2
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Coca Cola",
+      "nameAr": "كوكا كولا",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 42,
+        "protein": 0,
+        "carbs": 10.6,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 4
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Orange Juice",
+      "nameAr": "عصير برتقال",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 45,
+        "protein": 0.7,
+        "carbs": 10.4,
+        "fat": 0.2,
+        "fiber": 0.2,
+        "sodium": 1
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Basbousa",
+      "nameAr": "بسبوسة",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 350,
+        "protein": 6.5,
+        "carbs": 58.2,
+        "fat": 11.8,
+        "fiber": 1.2,
+        "sodium": 245
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Konafa",
+      "nameAr": "كنافة",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 395,
+        "protein": 8.2,
+        "carbs": 52.1,
+        "fat": 17.9,
+        "fiber": 1.8,
+        "sodium": 298
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Balah El Sham",
+      "nameAr": "بلح الشام",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 421,
+        "protein": 6.8,
+        "carbs": 51.2,
+        "fat": 21.5,
+        "fiber": 1.9,
+        "sodium": 187
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Roz Bel Laban",
+      "nameAr": "رز بلبن",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 97,
+        "protein": 3.1,
+        "carbs": 17.8,
+        "fat": 1.9,
+        "fiber": 0.2,
+        "sodium": 44
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mahalabia",
+      "nameAr": "مهلبية",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 118,
+        "protein": 4,
+        "carbs": 18.5,
+        "fat": 3.2,
+        "fiber": 0.1,
+        "sodium": 52
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mahshi Cabbage",
+      "nameAr": "محشي كرنب",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 95,
+        "protein": 3.5,
+        "carbs": 14.2,
+        "fat": 3,
+        "fiber": 2.8,
+        "sodium": 220
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mahshi Eggplant",
+      "nameAr": "محشي باذنجان",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 110,
+        "protein": 4.2,
+        "carbs": 16.5,
+        "fat": 3.8,
+        "fiber": 3.2,
+        "sodium": 280
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Baba Ganoush",
+      "nameAr": "بابا غنوج",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 105,
+        "protein": 2.8,
+        "carbs": 8.2,
+        "fat": 7.5,
+        "fiber": 4.1,
+        "sodium": 180
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Pickled Vegetables",
+      "nameAr": "طرشي",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 25,
+        "protein": 0.8,
+        "carbs": 5.2,
+        "fat": 0.1,
+        "fiber": 1.8,
+        "sodium": 1200
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Black Olives",
+      "nameAr": "زيتون أسود",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 115,
+        "protein": 0.8,
+        "carbs": 6,
+        "fat": 10.7,
+        "fiber": 3.2,
+        "sodium": 735
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Green Olives",
+      "nameAr": "زيتون أخضر",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 145,
+        "protein": 1,
+        "carbs": 3.8,
+        "fat": 15.3,
+        "fiber": 3.3,
+        "sodium": 1556
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Beef Liver",
+      "nameAr": "كبدة بقري",
+      "category": "protein",
+      "nutrition": {
+        "calories": 135,
+        "protein": 20.4,
+        "carbs": 2.5,
+        "fat": 4.9,
+        "fiber": 0,
+        "sodium": 69
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Chicken Liver",
+      "nameAr": "كبدة فراخ",
+      "category": "protein",
+      "nutrition": {
+        "calories": 119,
+        "protein": 16.9,
+        "carbs": 0.7,
+        "fat": 4.8,
+        "fiber": 0,
+        "sodium": 71
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tuna Canned",
+      "nameAr": "تونة معلبة",
+      "category": "protein",
+      "nutrition": {
+        "calories": 132,
+        "protein": 28,
+        "carbs": 0,
+        "fat": 1.3,
+        "fiber": 0,
+        "sodium": 247
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Shrimp",
+      "nameAr": "جمبري",
+      "category": "protein",
+      "nutrition": {
+        "calories": 85,
+        "protein": 18,
+        "carbs": 0.2,
+        "fat": 1.7,
+        "fiber": 0,
+        "sodium": 111
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Squid",
+      "nameAr": "سبيط",
+      "category": "protein",
+      "nutrition": {
+        "calories": 92,
+        "protein": 15.6,
+        "carbs": 3.1,
+        "fat": 1.4,
+        "fiber": 0,
+        "sodium": 44
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Peanuts",
+      "nameAr": "فول سوداني",
+      "category": "nuts_seeds",
+      "nutrition": {
+        "calories": 567,
+        "protein": 25.8,
+        "carbs": 16.1,
+        "fat": 49.2,
+        "fiber": 8.5,
+        "sodium": 18
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sunflower Seeds",
+      "nameAr": "لب عباد الشمس",
+      "category": "nuts_seeds",
+      "nutrition": {
+        "calories": 584,
+        "protein": 20.8,
+        "carbs": 20,
+        "fat": 51.5,
+        "fiber": 8.6,
+        "sodium": 9
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Pumpkin Seeds",
+      "nameAr": "لب أبيض",
+      "category": "nuts_seeds",
+      "nutrition": {
+        "calories": 559,
+        "protein": 30.2,
+        "carbs": 10.7,
+        "fat": 49.1,
+        "fiber": 6,
+        "sodium": 7
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Popcorn",
+      "nameAr": "فشار",
+      "category": "snacks",
+      "nutrition": {
+        "calories": 387,
+        "protein": 12.9,
+        "carbs": 77.8,
+        "fat": 4.5,
+        "fiber": 14.5,
+        "sodium": 8
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Honey",
+      "nameAr": "عسل نحل",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 304,
+        "protein": 0.3,
+        "carbs": 82.4,
+        "fat": 0,
+        "fiber": 0.2,
+        "sodium": 4
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Black Molasses",
+      "nameAr": "عسل أسود",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 290,
+        "protein": 0,
+        "carbs": 74.7,
+        "fat": 0.1,
+        "fiber": 0,
+        "sodium": 37
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "White Sugar",
+      "nameAr": " سكر أبيض ( معلقة متوسطة 6 جم)",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 387,
+        "protein": 0,
+        "carbs": 100,
+        "fat": 0,
+        "fiber": 0,
+        "sodium": 1
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Jam",
+      "nameAr": "مربى",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 278,
+        "protein": 0.4,
+        "carbs": 69,
+        "fat": 0.1,
+        "fiber": 1.2,
+        "sodium": 32
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mayonnaise",
+      "nameAr": "مايونيز",
+      "category": "oils_fats",
+      "nutrition": {
+        "calories": 680,
+        "protein": 1,
+        "carbs": 0.6,
+        "fat": 75,
+        "fiber": 0,
+        "sodium": 635
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Ketchup",
+      "nameAr": "كاتشب",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 112,
+        "protein": 1.7,
+        "carbs": 27.4,
+        "fat": 0.1,
+        "fiber": 0.4,
+        "sodium": 1110
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Mustard",
+      "nameAr": "مستردة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 66,
+        "protein": 3.7,
+        "carbs": 5.8,
+        "fat": 3.3,
+        "fiber": 3.2,
+        "sodium": 1135
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Soy Sauce",
+      "nameAr": "صويا صوص",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 8,
+        "protein": 1.3,
+        "carbs": 0.8,
+        "fat": 0,
+        "fiber": 0.1,
+        "sodium": 5493
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sahlab Drink",
+      "nameAr": "سحلب",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 89,
+        "protein": 3.2,
+        "carbs": 16.8,
+        "fat": 1.2,
+        "fiber": 0.1,
+        "sodium": 52
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Licorice Drink",
+      "nameAr": "عرقسوس",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 375,
+        "protein": 0,
+        "carbs": 93.6,
+        "fat": 0.1,
+        "fiber": 0,
+        "sodium": 50
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Carob Drink",
+      "nameAr": "خروب",
+      "category": "beverages",
+      "nutrition": {
+        "calories": 222,
+        "protein": 4.6,
+        "carbs": 88.9,
+        "fat": 0.7,
+        "fiber": 39.8,
+        "sodium": 35
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "ml"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Fattah",
+      "nameAr": "فتة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 180,
+        "protein": 8.2,
+        "carbs": 22.5,
+        "fat": 6.8,
+        "fiber": 2.1,
+        "sodium": 420
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Shawarma",
+      "nameAr": "شاورما",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 250,
+        "protein": 18.5,
+        "carbs": 12,
+        "fat": 15.2,
+        "fiber": 1.8,
+        "sodium": 680
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Kabab",
+      "nameAr": "كباب",
+      "category": "protein",
+      "nutrition": {
+        "calories": 280,
+        "protein": 25,
+        "carbs": 2,
+        "fat": 18.5,
+        "fiber": 0,
+        "sodium": 420
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Kofta",
+      "nameAr": "كفتة",
+      "category": "protein",
+      "nutrition": {
+        "calories": 265,
+        "protein": 22.8,
+        "carbs": 3.5,
+        "fat": 17.2,
+        "fiber": 0.5,
+        "sodium": 380
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Hummus",
+      "nameAr": "حمص بالطحينة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 166,
+        "protein": 8,
+        "carbs": 14.3,
+        "fat": 9.6,
+        "fiber": 6,
+        "sodium": 379
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Tabbouleh",
+      "nameAr": "تبولة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 36,
+        "protein": 1.5,
+        "carbs": 6,
+        "fat": 1.2,
+        "fiber": 1.4,
+        "sodium": 12
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Fattoush",
+      "nameAr": "فتوش",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 85,
+        "protein": 2.8,
+        "carbs": 12.5,
+        "fat": 3.2,
+        "fiber": 3.8,
+        "sodium": 180
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Aish Merahrah",
+      "nameAr": "عيش مرحرح",
+      "category": "grains",
+      "nutrition": {
+        "calories": 196,
+        "protein": 5.9,
+        "carbs": 36.4,
+        "fat": 2.9,
+        "fiber": 2.2,
+        "sodium": 364
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Feteer Meshaltet",
+      "nameAr": "فطير مشلتت",
+      "category": "grains",
+      "nutrition": {
+        "calories": 315,
+        "protein": 6.1,
+        "carbs": 33.8,
+        "fat": 17.6,
+        "fiber": 1.6,
+        "sodium": 510
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Hawawshi",
+      "nameAr": "حواوشي",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 303,
+        "protein": 24,
+        "carbs": 10.5,
+        "fat": 22.5,
+        "fiber": 2.3,
+        "sodium": 750
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Makarona bil Bechamel",
+      "nameAr": "مكرونة بالبشاميل",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 149,
+        "protein": 7,
+        "carbs": 20,
+        "fat": 3.7,
+        "fiber": 2.7,
+        "sodium": 300
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Salata Baladi",
+      "nameAr": "سلطة بلدي",
+      "category": "vegetables",
+      "nutrition": {
+        "calories": 25,
+        "protein": 1.5,
+        "carbs": 5,
+        "fat": 1.5,
+        "fiber": 2,
+        "sodium": 100
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sambousa",
+      "nameAr": "سمبوسة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 81,
+        "protein": 2,
+        "carbs": 12,
+        "fat": 3.3,
+        "fiber": 0.8,
+        "sodium": 120
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Um Ali",
+      "nameAr": "أم علي",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 478,
+        "protein": 5,
+        "carbs": 50,
+        "fat": 25,
+        "fiber": 2,
+        "sodium": 100
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Hammam Mahshi",
+      "nameAr": "حمام محشي",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 244,
+        "protein": 10.6,
+        "carbs": 18.5,
+        "fat": 14,
+        "fiber": 1,
+        "sodium": 100
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Sayadiyah",
+      "nameAr": "سيادية",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 198,
+        "protein": 11,
+        "carbs": 22,
+        "fat": 7.2,
+        "fiber": 2.6,
+        "sodium": 200
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Feseekh",
+      "nameAr": "فسيخ",
+      "category": "protein",
+      "nutrition": {
+        "calories": 250,
+        "protein": 25,
+        "carbs": 0,
+        "fat": 15,
+        "fiber": 0,
+        "sodium": 2000
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Shakshouka",
+      "nameAr": "شكشوكة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 131,
+        "protein": 6.6,
+        "carbs": 4.8,
+        "fat": 9.8,
+        "fiber": 1,
+        "sodium": 300
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Baklava",
+      "nameAr": "بقلاوة",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 428,
+        "protein": 6.7,
+        "carbs": 37.6,
+        "fat": 29,
+        "fiber": 2,
+        "sodium": 200
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Kahk",
+      "nameAr": "كحك",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 462,
+        "protein": 7.1,
+        "carbs": 58.2,
+        "fat": 22.3,
+        "fiber": 1.2,
+        "sodium": 50
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Beserah",
+      "nameAr": "بسارة",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 142,
+        "protein": 9,
+        "carbs": 13.5,
+        "fat": 5,
+        "fiber": 5.4,
+        "sodium": 50
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Warak Enab Mahshi",
+      "nameAr": "ورق عنب محشي",
+      "category": "prepared_foods",
+      "nutrition": {
+        "calories": 125,
+        "protein": 7,
+        "carbs": 16,
+        "fat": 2.7,
+        "fiber": 2,
+        "sodium": 200
+      },
+      "servingSize": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "isPublic": true
+    },
+    {
+      "name": "Qatayef",
+      "nameAr": "قطايف",
+      "category": "sweets",
+      "nutrition": {
+        "calories": 108,
+        "protein": 1.6,
+        "carbs": 19.1,
+        "fat": 3.2,
+        "fiber": 0.6,
+        "sodium": 30
+      },
+      "servingSize": {
+        "amount": 1,
+        "unit": "piece"
+      },
+      "isPublic": true
+    }
+  ],
+  "clearExisting": true
+}

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: kul-behesab-backend
+    env: node
+    rootDir: backend
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Add these in Render dashboard or here securely (recommended: dashboard)
+      # - key: MONGODB_URI
+      #   value: your_mongodb_atlas_connection_string
+      # - key: JWT_SECRET
+      #   value: your_secret
+    autoDeploy: true
