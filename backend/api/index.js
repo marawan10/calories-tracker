@@ -273,7 +273,13 @@ module.exports = async (req, res) => {
       return res.status(200).end();
     }
 
-    await connectToDatabase();
+    // Connect to database inside try-catch to ensure CORS headers are always sent
+    try {
+      await connectToDatabase();
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError);
+      return res.status(500).json({ message: 'Database connection failed' });
+    }
 
     const { method, url } = req;
     const urlParts = url.split('?');
@@ -300,6 +306,15 @@ module.exports = async (req, res) => {
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
         mongoConnected: mongoose.connection.readyState === 1
+      });
+    }
+
+    // Test endpoint for meal creation
+    if (method === 'POST' && path === '/api/test-meals') {
+      return res.json({
+        message: 'Test endpoint working',
+        received: req.body,
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -871,10 +886,13 @@ module.exports = async (req, res) => {
     // Create/Update meal (POST /api/meals) - SIMPLIFIED VERSION
     if (method === 'POST' && path === '/api/meals') {
       console.log('=== POST /api/meals START ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      console.log('Request headers:', req.headers);
       
       // Basic auth check
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('No authorization header found');
         return res.status(401).json({ message: 'No token provided' });
       }
 
