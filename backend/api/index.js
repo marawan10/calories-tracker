@@ -839,7 +839,45 @@ module.exports = async (req, res) => {
       }).populate('items.food', 'name nameAr category nutrition')
         .sort({ createdAt: -1 });
 
+      // Calculate daily totals
+      const dailyTotals = {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+        sugar: 0,
+        sodium: 0
+      };
+
+      meals.forEach(meal => {
+        dailyTotals.calories += meal.totals?.calories || 0;
+        dailyTotals.protein += meal.totals?.protein || 0;
+        dailyTotals.carbs += meal.totals?.carbs || 0;
+        dailyTotals.fat += meal.totals?.fat || 0;
+        dailyTotals.fiber += meal.totals?.fiber || 0;
+        dailyTotals.sugar += meal.totals?.sugar || 0;
+        dailyTotals.sodium += meal.totals?.sodium || 0;
+      });
+
+      // Group meals by type
+      const mealsByType = {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snack: []
+      };
+
+      meals.forEach(meal => {
+        if (mealsByType[meal.mealType]) {
+          mealsByType[meal.mealType].push(meal);
+        }
+      });
+
       return res.json({ 
+        dailyTotals,
+        mealsByType,
+        totalMeals: meals.length,
         meals: meals
       });
     }
@@ -873,24 +911,21 @@ module.exports = async (req, res) => {
       const meals = await Meal.find({
         user: user._id,
         date: { $gte: start, $lte: end }
-      }).populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
+      }).populate('items.food', 'name nameAr category nutrition');
 
-      // Calculate stats
-      const totalCalories = meals.reduce((sum, meal) => sum + meal.totalNutrition.calories, 0);
+      // Calculate stats using new schema
+      const totalCalories = meals.reduce((sum, meal) => sum + (meal.totals?.calories || 0), 0);
       const avgCalories = meals.length > 0 ? totalCalories / meals.length : 0;
 
       // Get frequent foods with proper error handling
       const foodFrequency = {};
       (meals || []).forEach(meal => {
-        if (meal && meal.meals) {
-          ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
-            const mealItems = meal.meals[mealType] || [];
-            mealItems.forEach(item => {
-              if (item && item.food && item.food._id) {
-                const foodId = item.food._id.toString();
-                foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1;
-              }
-            });
+        if (meal && meal.items) {
+          meal.items.forEach(item => {
+            if (item && item.food && item.food._id) {
+              const foodId = item.food._id.toString();
+              foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1;
+            }
           });
         }
       });
@@ -900,13 +935,49 @@ module.exports = async (req, res) => {
         .slice(0, 10)
         .map(([foodId, count]) => {
           const food = (meals || []).flatMap(meal => 
-            ['breakfast', 'lunch', 'dinner', 'snacks'].flatMap(type => 
-              (meal?.meals?.[type] || []).filter(item => item?.food?._id?.toString() === foodId)
-            )
+            (meal?.items || []).filter(item => item?.food?._id?.toString() === foodId)
           )[0]?.food;
           return food ? { food, count } : null;
         })
         .filter(item => item && item.food);
+
+      // Create daily data for charts
+      const dailyData = [];
+      const currentDate = new Date(start);
+      const endDateForLoop = new Date(end);
+      
+      while (currentDate <= endDateForLoop) {
+        const dateKey = currentDate.toISOString().split('T')[0];
+        const dayMeals = meals.filter(meal => {
+          const mealDate = meal.date.toISOString().split('T')[0];
+          return mealDate === dateKey;
+        });
+        
+        const dayTotals = {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0
+        };
+        
+        dayMeals.forEach(meal => {
+          dayTotals.calories += meal.totals?.calories || 0;
+          dayTotals.protein += meal.totals?.protein || 0;
+          dayTotals.carbs += meal.totals?.carbs || 0;
+          dayTotals.fat += meal.totals?.fat || 0;
+        });
+        
+        dailyData.push({
+          date: dateKey,
+          calories: dayTotals.calories,
+          protein: dayTotals.protein,
+          carbs: dayTotals.carbs,
+          fat: dayTotals.fat,
+          mealCount: dayMeals.length
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
 
       return res.json({
         stats: {
@@ -915,6 +986,7 @@ module.exports = async (req, res) => {
           avgCalories: Math.round(avgCalories) || 0,
           dateRange: { startDate: start, endDate: end }
         },
+        dailyData: dailyData,
         meals: meals || [],
         frequentFoods: frequentFoods || []
       });
