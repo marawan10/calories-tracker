@@ -1,15 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
 
+// Import models first
+const User = require('../models/User');
+const Food = require('../models/Food');
+
+// Import routes
 const authRoutes = require('../routes/auth');
 const foodRoutes = require('../routes/foods');
 const mealRoutes = require('../routes/meals');
 const userRoutes = require('../routes/users');
 const adminRoutes = require('../routes/admin');
-const User = require('../models/User');
-const Food = require('../models/Food');
 
 const app = express();
 
@@ -36,7 +38,9 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     message: 'كُل بحساب API is running!', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+    jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not Set'
   });
 });
 
@@ -207,6 +211,25 @@ async function ensureAdminUser() {
 
 // Serverless function handler
 module.exports = async (req, res) => {
-  await connectToDatabase();
-  return app(req, res);
+  try {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    await connectToDatabase();
+    return app(req, res);
+  } catch (error) {
+    console.error('Serverless function error:', error);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  }
 };
