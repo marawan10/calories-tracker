@@ -16,7 +16,12 @@ export function AuthProvider({ children }) {
   const location = useLocation()
 
   useEffect(() => {
-    api.setToken(token)
+    if (token) {
+      api.setToken(token)
+      console.log('Token set in API:', token.substring(0, 20) + '...')
+    } else {
+      console.log('No token available')
+    }
   }, [token])
 
   const login = async (email, password) => {
