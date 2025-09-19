@@ -158,68 +158,11 @@ const mealSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Calculate total nutrition before saving
-mealSchema.pre('save', async function(next) {
-  try {
-    console.log('Pre-save middleware triggered');
-    
-    // Skip recalculation if totalNutrition is already properly set
-    if (this.totalNutrition && 
-        typeof this.totalNutrition.calories === 'number' && 
-        this.totalNutrition.calories >= 0) {
-      console.log('Skipping nutrition recalculation - already calculated');
-      return next();
-    }
-
-    console.log('Calculating nutrition in pre-save middleware');
-    let totalNutrition = {
-      calories: 0, protein: 0, carbs: 0, fat: 0,
-      fiber: 0, sugar: 0, sodium: 0
-    };
-
-    // Calculate nutrition for all meal types
-    for (const mealType of ['breakfast', 'lunch', 'dinner', 'snacks']) {
-      if (this.meals[mealType] && Array.isArray(this.meals[mealType])) {
-        for (const item of this.meals[mealType]) {
-          try {
-            // If item already has calculated nutrition, use it
-            if (typeof item.calories === 'number') {
-              totalNutrition.calories += item.calories || 0;
-              totalNutrition.protein += item.protein || 0;
-              totalNutrition.carbs += item.carbs || 0;
-              totalNutrition.fat += item.fat || 0;
-            } else if (item.food && (item.weight || item.quantity)) {
-              // Fallback: calculate from food data
-              const food = await Food.findById(item.food);
-              if (food && food.nutrition) {
-                const weight = item.weight || item.quantity || 100;
-                const multiplier = weight / 100; // Nutrition is per 100g
-                totalNutrition.calories += (food.nutrition.calories || 0) * multiplier;
-                totalNutrition.protein += (food.nutrition.protein || 0) * multiplier;
-                totalNutrition.carbs += (food.nutrition.carbs || 0) * multiplier;
-                totalNutrition.fat += (food.nutrition.fat || 0) * multiplier;
-                totalNutrition.fiber += (food.nutrition.fiber || 0) * multiplier;
-                totalNutrition.sugar += (food.nutrition.sugar || 0) * multiplier;
-                totalNutrition.sodium += (food.nutrition.sodium || 0) * multiplier;
-              }
-            }
-          } catch (itemError) {
-            console.error('Error processing item in pre-save:', itemError);
-            // Continue with other items
-          }
-        }
-      }
-    }
-
-    this.totalNutrition = totalNutrition;
-    console.log('Pre-save nutrition calculated:', totalNutrition);
-    next();
-  } catch (error) {
-    console.error('Meal pre-save middleware error:', error);
-    // Don't fail the save, just log the error
-    next();
-  }
-});
+// DISABLED: Calculate total nutrition before saving - CAUSING 500 ERRORS
+// mealSchema.pre('save', async function(next) {
+//   // Middleware disabled to prevent conflicts
+//   next();
+// });
 
 // Create Meal model
 const Meal = mongoose.models.Meal || mongoose.model('Meal', mealSchema);
@@ -925,244 +868,129 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Create/Update meal (POST /api/meals)
+    // Create/Update meal (POST /api/meals) - SIMPLIFIED VERSION
     if (method === 'POST' && path === '/api/meals') {
-      try {
-        console.log('=== POST /api/meals START ===');
-        
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          console.log('No auth header provided');
-          return res.status(401).json({ message: 'No token provided' });
-        }
+      console.log('=== POST /api/meals START ===');
+      
+      // Basic auth check
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
 
-        let user;
-        try {
-          const token = authHeader.substring(7);
-          console.log('Token received, length:', token.length);
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-          console.log('Token decoded, userId:', decoded.userId);
-          user = await User.findById(decoded.userId);
-          if (!user) {
-            console.log('User not found for ID:', decoded.userId);
-            return res.status(401).json({ message: 'Invalid token' });
-          }
-          console.log('User found:', user.email);
-        } catch (error) {
-          console.error('Token verification error:', error);
+      // Verify token and get user
+      let user;
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        user = await User.findById(decoded.userId);
+        if (!user) {
           return res.status(401).json({ message: 'Invalid token' });
         }
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
 
-        const { mealType, items, notes, date } = req.body;
-        console.log('Received meal data:', { mealType, items: items?.length, notes, date });
+      // Get request data
+      const { mealType, items, notes = '', date } = req.body;
+      
+      // Basic validation
+      if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'mealType and items are required' });
+      }
 
-        // Validate required fields
-        if (!mealType || !items || !Array.isArray(items) || items.length === 0) {
-          return res.status(400).json({ message: 'mealType and items are required' });
-        }
+      if (!['breakfast', 'lunch', 'dinner', 'snacks'].includes(mealType)) {
+        return res.status(400).json({ message: 'Invalid meal type' });
+      }
 
-        // Validate meal type
-        const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snacks'];
-        if (!validMealTypes.includes(mealType)) {
-          return res.status(400).json({ message: 'Invalid meal type' });
-        }
-
-        // Use provided date or today
+      try {
+        // Process date
         const mealDate = date ? new Date(date) : new Date();
-        console.log('Processing meal for date:', mealDate);
-        
         const startOfDay = new Date(mealDate);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(mealDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        console.log('Date range:', { startOfDay, endOfDay });
-
-        // Ensure database connection
-        try {
-          await connectToDatabase();
-          console.log('Database connected successfully');
-        } catch (dbError) {
-          console.error('Database connection error:', dbError);
-          return res.status(500).json({ message: 'Database connection failed' });
-        }
-
-        // Find or create meal document for the day
-        let meal;
-        try {
-          console.log('Searching for existing meal...');
-          meal = await Meal.findOne({
-            user: user._id,
-            date: { $gte: startOfDay, $lte: endOfDay }
-          });
-          console.log('Found existing meal:', !!meal);
-        } catch (findError) {
-          console.error('Error finding meal:', findError);
-          return res.status(500).json({ message: 'Database query failed' });
-        }
-
-        if (!meal) {
-          console.log('Creating new meal document');
-          try {
-            meal = new Meal({
-              user: user._id,
-              date: mealDate,
-              meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-              totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
-            });
-            console.log('New meal document created');
-          } catch (createError) {
-            console.error('Error creating meal:', createError);
-            return res.status(500).json({ message: 'Failed to create meal document' });
-          }
-        }
-
-        // Ensure meals object exists and has all meal types
-        if (!meal.meals) {
-          meal.meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
-        }
-        ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
-          if (!meal.meals[type]) {
-            meal.meals[type] = [];
-          }
+        // Find or create meal document
+        let meal = await Meal.findOne({
+          user: user._id,
+          date: { $gte: startOfDay, $lte: endOfDay }
         });
 
-        // Process items and calculate nutrition
+        if (!meal) {
+          meal = new Meal({
+            user: user._id,
+            date: mealDate,
+            meals: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+            totalNutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+            notes: ''
+          });
+        }
+
+        // Process food items
         const processedItems = [];
-        let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+        for (const item of items) {
+          if (!item.food || !item.weight || item.weight <= 0) continue;
 
-        console.log('Processing items:', items.length);
-
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          console.log(`Processing item ${i}:`, { food: item.food, weight: item.weight });
-          
-          if (!item.food || !item.weight || item.weight <= 0) {
-            console.log(`Skipping invalid item ${i}`);
-            continue;
-          }
-
-          let food;
-          try {
-            food = await Food.findById(item.food);
-            if (!food) {
-              console.log('Food not found:', item.food);
-              continue;
-            }
-            console.log('Found food:', food.name);
-          } catch (foodError) {
-            console.error('Error finding food:', foodError);
-            continue;
-          }
+          const food = await Food.findById(item.food);
+          if (!food) continue;
 
           const weight = parseFloat(item.weight);
-          const multiplier = weight / 100; // Nutrition is per 100g
+          const multiplier = weight / 100;
 
-          const itemNutrition = {
+          processedItems.push({
+            food: food._id,
+            weight: weight,
             calories: (food.nutrition?.calories || 0) * multiplier,
             protein: (food.nutrition?.protein || 0) * multiplier,
             carbs: (food.nutrition?.carbs || 0) * multiplier,
             fat: (food.nutrition?.fat || 0) * multiplier
-          };
-
-          console.log('Calculated nutrition:', itemNutrition);
-
-          processedItems.push({
-            food: food._id,
-            weight,
-            calories: itemNutrition.calories,
-            protein: itemNutrition.protein,
-            carbs: itemNutrition.carbs,
-            fat: itemNutrition.fat
           });
-
-          totalCalories += itemNutrition.calories;
-          totalProtein += itemNutrition.protein;
-          totalCarbs += itemNutrition.carbs;
-          totalFat += itemNutrition.fat;
         }
-
-        console.log('Processed items count:', processedItems.length);
 
         if (processedItems.length === 0) {
           return res.status(400).json({ message: 'No valid food items found' });
         }
 
-        // Add items to the specific meal type
+        // Update meal
         meal.meals[mealType] = processedItems;
+        meal.notes = notes;
 
-        // Recalculate total nutrition for the entire day
-        meal.totalNutrition = {
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0,
-          fiber: 0,
-          sugar: 0,
-          sodium: 0
-        };
-
+        // Calculate total nutrition manually (bypass middleware)
+        let totalNutrition = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
         ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(type => {
-          if (Array.isArray(meal.meals[type])) {
+          if (meal.meals[type]) {
             meal.meals[type].forEach(item => {
-              meal.totalNutrition.calories += item.calories || 0;
-              meal.totalNutrition.protein += item.protein || 0;
-              meal.totalNutrition.carbs += item.carbs || 0;
-              meal.totalNutrition.fat += item.fat || 0;
+              totalNutrition.calories += item.calories || 0;
+              totalNutrition.protein += item.protein || 0;
+              totalNutrition.carbs += item.carbs || 0;
+              totalNutrition.fat += item.fat || 0;
             });
           }
         });
+        meal.totalNutrition = totalNutrition;
 
-        meal.notes = notes || '';
-        
-        console.log('Attempting to save meal...');
-        console.log('Meal object before save:', {
-          user: meal.user,
-          date: meal.date,
-          mealType: mealType,
-          itemsCount: processedItems.length,
-          totalNutrition: meal.totalNutrition
-        });
-        
-        try {
-          // Temporarily disable the pre-save middleware to avoid conflicts
-          const savedMeal = await meal.save({ validateBeforeSave: true });
-          console.log('Meal saved to database successfully');
-          meal = savedMeal;
-        } catch (saveError) {
-          console.error('Error saving meal:', saveError);
-          console.error('Save error details:', {
-            name: saveError.name,
-            message: saveError.message,
-            stack: saveError.stack
-          });
-          return res.status(500).json({ 
-            message: 'Failed to save meal', 
-            error: saveError.message,
-            details: process.env.NODE_ENV === 'development' ? saveError.stack : undefined
-          });
-        }
+        // Save meal
+        await meal.save();
 
-        // Populate food details for response
-        console.log('Populating food details...');
-        try {
-          await meal.populate('meals.breakfast.food meals.lunch.food meals.dinner.food meals.snacks.food');
-          console.log('Food details populated');
-        } catch (populateError) {
-          console.error('Error populating food details:', populateError);
-          // Continue without population if it fails
-        }
-
-        console.log('Meal saved successfully');
+        // Return success
         return res.json({
           message: 'Meal saved successfully',
-          meal
+          meal: {
+            _id: meal._id,
+            user: meal.user,
+            date: meal.date,
+            meals: meal.meals,
+            totalNutrition: meal.totalNutrition,
+            notes: meal.notes
+          }
         });
+
       } catch (error) {
         console.error('POST /api/meals error:', error);
         return res.status(500).json({ 
-          message: 'Server error', 
-          error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+          message: 'Server error',
+          error: error.message
         });
       }
     }
