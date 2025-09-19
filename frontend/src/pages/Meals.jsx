@@ -25,7 +25,10 @@ export default function Meals() {
     try {
       setLoading(true)
       const { data } = await api.get('/meals', { params: { date } })
-      setMeals(data.meals)
+      setMeals(Array.isArray(data.meals) ? data.meals : [])
+    } catch (error) {
+      console.error('Error fetching meals:', error)
+      setMeals([])
     } finally {
       setLoading(false)
     }
@@ -34,10 +37,11 @@ export default function Meals() {
   const fetchFoods = async () => {
     try {
       const { data } = await api.get('/foods', { params: { limit: 1000 } })
-      console.log('📊 Foods loaded:', data.foods.length)
-      setFoods(data.foods)
+      console.log('📊 Foods loaded:', data.foods?.length || 0)
+      setFoods(Array.isArray(data.foods) ? data.foods : [])
     } catch (error) {
       console.error('❌ Error loading foods:', error)
+      setFoods([])
       toast.error('فشل في تحميل قائمة الأطعمة')
     }
   }
@@ -48,23 +52,29 @@ export default function Meals() {
       const { data } = await api.get('/meals', { params: { limit: 50 } })
       const foodFrequency = {}
       
-      data.meals.forEach(meal => {
-        meal.items.forEach(item => {
-          if (item.food && item.food._id) {
-            const foodId = item.food._id
-            foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1
+      if (Array.isArray(data.meals)) {
+        data.meals.forEach(meal => {
+          if (Array.isArray(meal.items)) {
+            meal.items.forEach(item => {
+              if (item.food && item.food._id) {
+                const foodId = item.food._id
+                foodFrequency[foodId] = (foodFrequency[foodId] || 0) + 1
+              }
+            })
           }
         })
-      })
+      }
       
       // Sort foods by frequency and get top 6
       const sortedFoods = Object.entries(foodFrequency)
         .sort(([,a], [,b]) => b - a)
         .slice(0, 6)
-        .map(([foodId]) => data.meals
-          .flatMap(meal => meal.items)
-          .find(item => item.food?._id === foodId)?.food
-        )
+        .map(([foodId]) => {
+          if (!Array.isArray(data.meals)) return null
+          return data.meals
+            .flatMap(meal => Array.isArray(meal.items) ? meal.items : [])
+            .find(item => item.food?._id === foodId)?.food
+        })
         .filter(Boolean)
       
       setFrequentFoods(sortedFoods)
@@ -95,6 +105,7 @@ export default function Meals() {
 
   // Filter foods based on search query for a specific item
   const getFilteredFoods = (searchQuery) => {
+    if (!Array.isArray(foods)) return []
     if (!searchQuery || searchQuery.length < 1) return foods
     
     const query = searchQuery.toLowerCase().trim()
