@@ -91,12 +91,16 @@ export default function Meals() {
 
   const totals = useMemo(() => {
     const t = { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    meals.forEach(m => {
-      t.calories += m.totals.calories
-      t.protein += m.totals.protein
-      t.carbs += m.totals.carbs
-      t.fat += m.totals.fat
-    })
+    if (Array.isArray(meals)) {
+      meals.forEach(m => {
+        if (m.totals) {
+          t.calories += m.totals.calories || 0
+          t.protein += m.totals.protein || 0
+          t.carbs += m.totals.carbs || 0
+          t.fat += m.totals.fat || 0
+        }
+      })
+    }
     return t
   }, [meals])
 
