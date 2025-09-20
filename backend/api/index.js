@@ -339,12 +339,14 @@ const setCORSHeaders = (req, res) => {
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // For production, be more permissive to handle various Vercel preview URLs
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 };
 
 // Main handler
@@ -353,7 +355,12 @@ module.exports = async (req, res) => {
     // Set CORS headers
     setCORSHeaders(req, res);
 
+    const { method, url } = req;
+    const urlParts = url.split('?');
+    const path = urlParts[0];
+
     if (req.method === 'OPTIONS') {
+      console.log('OPTIONS request received for:', path);
       return res.status(200).end();
     }
 
@@ -364,10 +371,6 @@ module.exports = async (req, res) => {
       console.error('Database connection failed:', dbError);
       return res.status(500).json({ message: 'Database connection failed' });
     }
-
-    const { method, url } = req;
-    const urlParts = url.split('?');
-    const path = urlParts[0];
     
     // Parse query parameters manually for better compatibility
     const queryParams = {};
@@ -1291,8 +1294,16 @@ module.exports = async (req, res) => {
       // Ensure CORS headers are set
       setCORSHeaders(req, res);
 
+      console.log('Profile update request received:', {
+        method,
+        path,
+        headers: req.headers,
+        body: req.body
+      });
+
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('No auth header provided');
         return res.status(401).json({ message: 'No token provided' });
       }
 
@@ -1302,43 +1313,85 @@ module.exports = async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
         user = await User.findById(decoded.userId);
         if (!user) {
+          console.log('User not found for token');
           return res.status(401).json({ message: 'Invalid token' });
         }
+        console.log('User authenticated:', user.email);
       } catch (error) {
+        console.log('Token verification failed:', error.message);
         return res.status(401).json({ message: 'Invalid token' });
       }
 
-      const { name, profile, dailyGoals, preferences, avatar } = req.body;
+      try {
+        const { name, profile, dailyGoals, preferences, avatar, age, gender, height, weight, activityLevel, goal } = req.body;
 
-      if (name) user.name = name.trim();
-      if (profile) {
-        user.profile = { ...user.profile, ...profile };
-      }
-      if (dailyGoals) {
-        user.dailyGoals = { ...user.dailyGoals, ...dailyGoals };
-      }
-      if (preferences) {
-        user.preferences = { ...user.preferences, ...preferences };
-      }
-      if (avatar !== undefined) {
-        user.avatar = avatar;
-      }
+        console.log('Profile update data:', { name, profile, dailyGoals, preferences, avatar, age, gender, height, weight, activityLevel, goal });
 
-      await user.save();
+        // Handle direct profile fields (from frontend form)
+        if (name) user.name = name.trim();
+        if (age !== undefined) user.profile.age = age;
+        if (gender !== undefined) user.profile.gender = gender;
+        if (height !== undefined) user.profile.height = height;
+        if (weight !== undefined) user.profile.weight = weight;
+        if (activityLevel !== undefined) user.profile.activityLevel = activityLevel;
+        if (goal !== undefined) user.profile.goal = goal;
+        if (avatar !== undefined) user.avatar = avatar;
 
-      return res.json({
-        message: 'Profile updated successfully',
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          profile: user.profile,
-          dailyGoals: user.dailyGoals,
-          preferences: user.preferences,
-          avatar: user.avatar
+        // Handle nested profile object
+        if (profile) {
+          user.profile = { ...user.profile, ...profile };
         }
-      });
+        if (dailyGoals) {
+          user.dailyGoals = { ...user.dailyGoals, ...dailyGoals };
+        }
+        if (preferences) {
+          user.preferences = { ...user.preferences, ...preferences };
+        }
+
+        // Auto-calculate daily calorie goal if we have enough data
+        if (user.profile.age && user.profile.gender && user.profile.height && user.profile.weight) {
+          const calculatedCalories = user.calculateDailyCalories();
+          if (calculatedCalories) {
+            // Adjust based on goal
+            let adjustedCalories = calculatedCalories;
+            if (user.profile.goal === 'lose_weight') {
+              adjustedCalories = Math.round(calculatedCalories * 0.85); // 15% deficit
+            } else if (user.profile.goal === 'gain_weight') {
+              adjustedCalories = Math.round(calculatedCalories * 1.15); // 15% surplus
+            }
+            
+            user.dailyGoals.calories = adjustedCalories;
+            
+            // Calculate macro goals (protein: 25%, carbs: 45%, fat: 30%)
+            user.dailyGoals.protein = Math.round((adjustedCalories * 0.25) / 4);
+            user.dailyGoals.carbs = Math.round((adjustedCalories * 0.45) / 4);
+            user.dailyGoals.fat = Math.round((adjustedCalories * 0.30) / 9);
+          }
+        }
+
+        await user.save();
+        console.log('Profile updated successfully for user:', user.email);
+
+        return res.json({
+          message: 'Profile updated successfully',
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profile: user.profile,
+            dailyGoals: user.dailyGoals,
+            preferences: user.preferences,
+            avatar: user.avatar
+          }
+        });
+      } catch (error) {
+        console.error('Profile update error:', error);
+        return res.status(500).json({
+          message: 'Server error while updating profile',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+      }
     }
 
     // Upload profile image
