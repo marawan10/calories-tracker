@@ -16,9 +16,11 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.vercel.app', 'https://kul-behesab.vercel.app'] 
+    ? ['https://calories-tracker-6oiu.vercel.app', 'https://kul-behesab.vercel.app', 'https://your-frontend-domain.vercel.app'] 
     : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
 // Increase body limits to support base64 avatars
 app.use(express.json({ limit: '10mb' }));
