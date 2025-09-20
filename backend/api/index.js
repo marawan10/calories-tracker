@@ -52,6 +52,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor Equation
 userSchema.methods.calculateBMR = function() {
+  if (!this.profile) return null; // Add guard clause
   const { age, gender, height, weight } = this.profile;
   
   if (!age || !height || !weight || !gender) return null;
@@ -69,7 +70,7 @@ userSchema.methods.calculateBMR = function() {
 // Calculate daily calorie needs based on activity level
 userSchema.methods.calculateDailyCalories = function() {
   const bmr = this.calculateBMR();
-  if (!bmr) return null;
+  if (!bmr || !this.profile) return null; // Add guard clause
   
   const activityMultipliers = {
     sedentary: 1.2,
@@ -1326,6 +1327,11 @@ module.exports = async (req, res) => {
         const { name, profile, dailyGoals, preferences, avatar, age, gender, height, weight, activityLevel, goal } = req.body;
 
         console.log('Profile update data:', { name, profile, dailyGoals, preferences, avatar, age, gender, height, weight, activityLevel, goal });
+
+        // Ensure profile object exists
+        if (!user.profile) {
+          user.profile = {};
+        }
 
         // Handle direct profile fields (from frontend form)
         if (name) user.name = name.trim();
