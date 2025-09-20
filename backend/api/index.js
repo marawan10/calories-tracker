@@ -325,29 +325,33 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
+// Helper function to set CORS headers
+const setCORSHeaders = (req, res) => {
+  const allowedOrigins = [
+    'https://calories-tracker-6oiu.vercel.app',
+    'https://calories-tracker-6oiu-git-main-marawanmokhtar10-1042s-projects.vercel.app',
+    'https://calories-tracker-opal.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+};
+
 // Main handler
 module.exports = async (req, res) => {
   try {
     // Set CORS headers
-    const allowedOrigins = [
-      'https://calories-tracker-6oiu.vercel.app',
-      'https://calories-tracker-6oiu-git-main-marawanmokhtar10-1042s-projects.vercel.app',
-      'https://calories-tracker-opal.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ];
-    
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-    }
-    
-    // Set additional CORS headers
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    setCORSHeaders(req, res);
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
@@ -1284,6 +1288,9 @@ module.exports = async (req, res) => {
 
     // Update user profile
     if (method === 'PUT' && path === '/api/users/profile') {
+      // Ensure CORS headers are set
+      setCORSHeaders(req, res);
+
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'No token provided' });
@@ -1336,6 +1343,9 @@ module.exports = async (req, res) => {
 
     // Upload profile image
     if (method === 'POST' && path === '/api/users/avatar') {
+      // Ensure CORS headers are set
+      setCORSHeaders(req, res);
+
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'No token provided' });
@@ -1716,24 +1726,7 @@ module.exports = async (req, res) => {
     console.error('API Error:', error);
     
     // Ensure CORS headers are set even for errors
-    const allowedOrigins = [
-      'https://calories-tracker-6oiu.vercel.app',
-      'https://calories-tracker-6oiu-git-main-marawanmokhtar10-1042s-projects.vercel.app',
-      'https://calories-tracker-opal.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ];
-    
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-    }
-    
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+    setCORSHeaders(req, res);
     
     // Return safe error response with expected structure
     const errorResponse = { 
