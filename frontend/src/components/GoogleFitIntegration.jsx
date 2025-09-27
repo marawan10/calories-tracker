@@ -32,6 +32,14 @@ const GoogleFitIntegration = ({ onDataSync }) => {
   const initializeGoogleFit = async () => {
     try {
       setIsLoading(true);
+      
+      // Debug logging
+      console.log('Google Fit Config:', {
+        CLIENT_ID: GOOGLE_FIT_CONFIG.CLIENT_ID,
+        API_KEY: GOOGLE_FIT_CONFIG.API_KEY,
+        env: import.meta.env
+      });
+      
       await googleFitService.init(GOOGLE_FIT_CONFIG.CLIENT_ID, GOOGLE_FIT_CONFIG.API_KEY);
       setIsConnected(googleFitService.isUserSignedIn());
       setIsInitialized(true);
