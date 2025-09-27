@@ -25,7 +25,7 @@ class GoogleFitService {
     };
   }
 
-  // Initialize Google API
+  // Initialize Google API with new Google Identity Services
   async init(clientId, apiKey) {
     return new Promise((resolve, reject) => {
       if (this.isInitialized) {
@@ -33,46 +33,77 @@ class GoogleFitService {
         return;
       }
 
-      // Load Google API script
-      if (!window.gapi) {
+      this.clientId = clientId;
+      this.apiKey = apiKey;
+
+      // Load Google Identity Services script
+      if (!window.google) {
         const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
+        script.src = 'https://accounts.google.com/gsi/client';
         script.onload = () => {
-          this.loadGoogleAPI(clientId, apiKey, resolve, reject);
+          this.loadGoogleIdentityServices(resolve, reject);
         };
-        script.onerror = () => reject(new Error('Failed to load Google API'));
+        script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
         document.head.appendChild(script);
       } else {
-        this.loadGoogleAPI(clientId, apiKey, resolve, reject);
+        this.loadGoogleIdentityServices(resolve, reject);
       }
     });
   }
 
-  loadGoogleAPI(clientId, apiKey, resolve, reject) {
-    window.gapi.load('auth2:client', async () => {
-      try {
-        await window.gapi.client.init({
-          apiKey: apiKey,
-          clientId: clientId,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest'],
-          scope: this.scopes.join(' ')
+  loadGoogleIdentityServices(resolve, reject) {
+    try {
+      // Initialize Google Identity Services
+      window.google.accounts.id.initialize({
+        client_id: this.clientId,
+        callback: this.handleCredentialResponse.bind(this)
+      });
+
+      // Load GAPI for API calls
+      if (!window.gapi) {
+        const gapiScript = document.createElement('script');
+        gapiScript.src = 'https://apis.google.com/js/api.js';
+        gapiScript.onload = () => {
+          window.gapi.load('client', async () => {
+            await window.gapi.client.init({
+              apiKey: this.apiKey,
+              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest']
+            });
+            
+            this.gapi = window.gapi;
+            this.isInitialized = true;
+            console.log('Google Fit API initialized successfully with GIS');
+            resolve(true);
+          });
+        };
+        gapiScript.onerror = () => reject(new Error('Failed to load GAPI'));
+        document.head.appendChild(gapiScript);
+      } else {
+        window.gapi.load('client', async () => {
+          await window.gapi.client.init({
+            apiKey: this.apiKey,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest']
+          });
+          
+          this.gapi = window.gapi;
+          this.isInitialized = true;
+          console.log('Google Fit API initialized successfully with GIS');
+          resolve(true);
         });
-
-        this.gapi = window.gapi;
-        this.authInstance = this.gapi.auth2.getAuthInstance();
-        this.isInitialized = true;
-        this.isSignedIn = this.authInstance.isSignedIn.get();
-        
-        console.log('Google Fit API initialized successfully');
-        resolve(true);
-      } catch (error) {
-        console.error('Error initializing Google Fit API:', error);
-        reject(error);
       }
-    });
+    } catch (error) {
+      console.error('Error initializing Google Identity Services:', error);
+      reject(error);
+    }
   }
 
-  // Sign in to Google
+  handleCredentialResponse(response) {
+    // Handle the credential response
+    console.log('Credential response:', response);
+    this.isSignedIn = true;
+  }
+
+  // Sign in to Google using OAuth 2.0 flow
   async signIn() {
     if (!this.isInitialized) {
       throw new Error('Google Fit API not initialized');
@@ -83,10 +114,25 @@ class GoogleFitService {
         return true;
       }
 
-      await this.authInstance.signIn();
-      this.isSignedIn = true;
-      console.log('Successfully signed in to Google Fit');
-      return true;
+      // Use OAuth 2.0 flow for API access
+      return new Promise((resolve, reject) => {
+        window.gapi.load('auth2', () => {
+          window.gapi.auth2.init({
+            client_id: this.clientId,
+            scope: this.scopes.join(' ')
+          }).then(() => {
+            const authInstance = window.gapi.auth2.getAuthInstance();
+            return authInstance.signIn();
+          }).then(() => {
+            this.isSignedIn = true;
+            console.log('Successfully signed in to Google Fit');
+            resolve(true);
+          }).catch(error => {
+            console.error('Error signing in to Google Fit:', error);
+            reject(error);
+          });
+        });
+      });
     } catch (error) {
       console.error('Error signing in to Google Fit:', error);
       throw error;
@@ -100,7 +146,18 @@ class GoogleFitService {
     }
 
     try {
-      await this.authInstance.signOut();
+      if (window.gapi && window.gapi.auth2) {
+        const authInstance = window.gapi.auth2.getAuthInstance();
+        if (authInstance) {
+          await authInstance.signOut();
+        }
+      }
+      
+      // Also sign out from Google Identity Services
+      if (window.google && window.google.accounts) {
+        window.google.accounts.id.disableAutoSelect();
+      }
+      
       this.isSignedIn = false;
       console.log('Successfully signed out from Google Fit');
     } catch (error) {
