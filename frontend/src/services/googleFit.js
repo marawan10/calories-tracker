@@ -226,14 +226,10 @@ class GoogleFitService {
     const endTimeMillis = new Date(endDate).getTime();
 
     try {
-      // Use direct API call with access token
-      const response = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      // Get aggregated data for the date range
+      const response = await this.gapi.client.fitness.users.dataset.aggregate({
+        userId: 'me',
+        resource: {
           aggregateBy: [
             { dataTypeName: this.dataTypes.CALORIES_EXPENDED },
             { dataTypeName: this.dataTypes.STEP_COUNT_DELTA },
@@ -243,15 +239,10 @@ class GoogleFitService {
           bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
           startTimeMillis: startTimeMillis,
           endTimeMillis: endTimeMillis
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return this.processFitnessData(data);
+      return this.processFitnessData(response.result);
     } catch (error) {
       console.error('Error fetching fitness data:', error);
       throw error;
