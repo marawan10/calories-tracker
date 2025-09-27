@@ -103,7 +103,7 @@ class GoogleFitService {
     this.isSignedIn = true;
   }
 
-  // Sign in to Google using OAuth 2.0 flow
+  // Sign in to Google using modern OAuth 2.0 flow
   async signIn() {
     if (!this.isInitialized) {
       throw new Error('Google Fit API not initialized');
@@ -114,24 +114,69 @@ class GoogleFitService {
         return true;
       }
 
-      // Use OAuth 2.0 flow for API access
+      // Use Google OAuth 2.0 popup flow
       return new Promise((resolve, reject) => {
-        window.gapi.load('auth2', () => {
-          window.gapi.auth2.init({
-            client_id: this.clientId,
-            scope: this.scopes.join(' ')
-          }).then(() => {
-            const authInstance = window.gapi.auth2.getAuthInstance();
-            return authInstance.signIn();
-          }).then(() => {
+        // Create OAuth URL
+        const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+        const params = new URLSearchParams({
+          client_id: this.clientId,
+          redirect_uri: `${window.location.origin}/google-auth-callback.html`,
+          response_type: 'token',
+          scope: this.scopes.join(' '),
+          include_granted_scopes: 'true',
+          state: 'google_fit_auth'
+        });
+
+        const authUrl = `${oauth2Endpoint}?${params.toString()}`;
+        
+        // Open popup window
+        const popup = window.open(
+          authUrl,
+          'google-auth',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        // Listen for popup messages
+        const messageListener = (event) => {
+          if (event.origin !== window.location.origin) {
+            return;
+          }
+
+          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+            this.accessToken = event.data.access_token;
             this.isSignedIn = true;
+            window.removeEventListener('message', messageListener);
+            popup.close();
             console.log('Successfully signed in to Google Fit');
             resolve(true);
-          }).catch(error => {
-            console.error('Error signing in to Google Fit:', error);
-            reject(error);
-          });
-        });
+          } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+            window.removeEventListener('message', messageListener);
+            popup.close();
+            console.error('Google Auth Error:', event.data.error);
+            reject(new Error(event.data.error));
+          }
+        };
+
+        window.addEventListener('message', messageListener);
+
+        // Check if popup was closed manually
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageListener);
+            reject(new Error('Authentication popup was closed'));
+          }
+        }, 1000);
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          if (!popup.closed) {
+            popup.close();
+          }
+          reject(new Error('Authentication timeout'));
+        }, 300000);
       });
     } catch (error) {
       console.error('Error signing in to Google Fit:', error);
@@ -181,10 +226,14 @@ class GoogleFitService {
     const endTimeMillis = new Date(endDate).getTime();
 
     try {
-      // Get aggregated data for the date range
-      const response = await this.gapi.client.fitness.users.dataset.aggregate({
-        userId: 'me',
-        resource: {
+      // Use direct API call with access token
+      const response = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           aggregateBy: [
             { dataTypeName: this.dataTypes.CALORIES_EXPENDED },
             { dataTypeName: this.dataTypes.STEP_COUNT_DELTA },
@@ -194,10 +243,15 @@ class GoogleFitService {
           bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
           startTimeMillis: startTimeMillis,
           endTimeMillis: endTimeMillis
-        }
+        })
       });
 
-      return this.processFitnessData(response.result);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return this.processFitnessData(data);
     } catch (error) {
       console.error('Error fetching fitness data:', error);
       throw error;
