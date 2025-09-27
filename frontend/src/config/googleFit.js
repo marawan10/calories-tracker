@@ -8,8 +8,8 @@
 
 export const GOOGLE_FIT_CONFIG = {
   // Replace with your actual Google Cloud Console credentials
-  CLIENT_ID: process.env.REACT_APP_GOOGLE_FIT_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com',
-  API_KEY: process.env.REACT_APP_GOOGLE_FIT_API_KEY || 'your-google-api-key',
+  CLIENT_ID: import.meta.env.REACT_APP_GOOGLE_FIT_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com',
+  API_KEY: import.meta.env.REACT_APP_GOOGLE_FIT_API_KEY || 'your-google-api-key',
   
   // Scopes for Google Fit API
   SCOPES: [
