@@ -15,6 +15,8 @@ import Reports from './pages/Reports.jsx'
 import Profile from './pages/Profile.jsx'
 import BMI from './pages/BMI.jsx'
 import AdminUsers from './pages/admin/AdminUsers.jsx'
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx'
+import TermsOfService from './pages/TermsOfService.jsx'
 
 export default function App() {
   return (
@@ -91,6 +93,10 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Public pages for Google verification */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
