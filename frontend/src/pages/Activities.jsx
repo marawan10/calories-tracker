@@ -56,18 +56,66 @@ export default function Activities() {
   useEffect(() => { fetchActivities() }, [date])
   useEffect(() => { fetchPredefinedActivities() }, [])
 
+  // Calculate BMR (Basal Metabolic Rate) - approximate daily calories burned at rest
+  const calculateBMR = () => {
+    // Using average BMR of ~1800 calories per day = ~75 calories per hour = ~1.25 calories per minute
+    // For activities, we'll estimate BMR portion and subtract it
+    return 1800 // Daily BMR - will be prorated based on activity duration
+  }
+
+  // Calculate activity-only calories (excluding BMR)
+  const getActivityOnlyCalories = (totalCalories, steps) => {
+    const bmrPerDay = calculateBMR()
+    const bmrPerStep = bmrPerDay / 10000 // Assuming 10,000 steps baseline per day
+    const estimatedBMRCalories = Math.min(steps * bmrPerStep * 0.3, totalCalories * 0.4) // Cap BMR at 40% of total
+    
+    const activityCalories = Math.max(totalCalories - estimatedBMRCalories, totalCalories * 0.6)
+    return Math.round(activityCalories)
+  }
+
   // Handle Google Fit data sync
   const handleGoogleFitDataSync = (fitData) => {
     console.log('Google Fit data received:', fitData)
     setGoogleFitData(fitData)
     
-    // Auto-populate form with Google Fit data if available
-    if (fitData && fitData.calories > 0) {
+    // Calculate activity-only calories (excluding BMR)
+    const activityOnlyCalories = fitData ? getActivityOnlyCalories(fitData.calories, fitData.steps) : 0
+    
+    // Auto-update existing entry if connected to Google Fit
+    if (fitData && fitData.calories > 0 && isGoogleFitConnected && dailyEntry) {
+      updateGoogleFitEntry(activityOnlyCalories, fitData)
+    }
+    
+    // Auto-populate form with Google Fit data if available and no entry exists
+    if (fitData && fitData.calories > 0 && !dailyEntry) {
       setForm(prev => ({
         ...prev,
-        caloriesBurned: fitData.calories,
-        notes: `بيانات من Google Fit - ${fitData.steps} خطوة، ${(fitData.distance / 1000).toFixed(1)} كم`
+        caloriesBurned: activityOnlyCalories,
+        notes: `بيانات من Google Fit - ${fitData.steps} خطوة، ${(fitData.distance / 1000).toFixed(1)} كم (نشاط فقط، بدون BMR)`
       }))
+    }
+  }
+
+  // Auto-update Google Fit entry
+  const updateGoogleFitEntry = async (activityCalories, fitData) => {
+    try {
+      const payload = {
+        name: 'نشاط من الساعة الذكية',
+        nameAr: 'نشاط من الساعة الذكية',
+        type: 'other',
+        caloriesBurned: activityCalories,
+        notes: `بيانات من Google Fit - ${fitData.steps} خطوة، ${(fitData.distance / 1000).toFixed(1)} كم (نشاط فقط، بدون BMR)`,
+        date: date,
+        isFromGoogleFit: true
+      }
+
+      await api.put(`/activities/${dailyEntry._id}`, payload)
+      console.log('✅ Auto-updated Google Fit entry with activity-only calories')
+      
+      // Refresh activities to show updated data
+      fetchActivities()
+    } catch (error) {
+      console.error('Failed to auto-update Google Fit entry:', error)
     }
   }
 
@@ -86,7 +134,8 @@ export default function Activities() {
         type: 'other',
         caloriesBurned: form.caloriesBurned, // Use calories directly from smartwatch
         notes: form.notes,
-        date
+        date: date,
+        isFromGoogleFit: isGoogleFitConnected && googleFitData // Mark if from Google Fit
       }
       
       if (editingActivity || dailyEntry) {
@@ -205,22 +254,32 @@ export default function Activities() {
         </div>
         <div className="flex gap-3">
           {hasEntryForToday ? (
-            <motion.button 
-              className="btn-secondary flex items-center gap-2 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-              onClick={() => {
-                setForm({
-                  caloriesBurned: dailyEntry.caloriesBurned,
-                  notes: dailyEntry.notes || ''
-                })
-                setEditingActivity(dailyEntry)
-                setShowForm(true)
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Edit className="w-4 h-4" />
-              تعديل بيانات اليوم
-            </motion.button>
+            // Show edit button only if NOT from Google Fit, or show different text if from Google Fit
+            dailyEntry?.isFromGoogleFit || (isGoogleFitConnected && googleFitData) ? (
+              <motion.div 
+                className="flex items-center gap-2 px-6 py-3 bg-green-50 text-green-700 rounded-lg border border-green-200"
+              >
+                <Smartphone className="w-4 h-4" />
+                <span className="text-sm font-medium">محدث تلقائياً من Google Fit</span>
+              </motion.div>
+            ) : (
+              <motion.button 
+                className="btn-secondary flex items-center gap-2 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={() => {
+                  setForm({
+                    caloriesBurned: dailyEntry.caloriesBurned,
+                    notes: dailyEntry.notes || ''
+                  })
+                  setEditingActivity(dailyEntry)
+                  setShowForm(true)
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Edit className="w-4 h-4" />
+                تعديل بيانات اليوم
+              </motion.button>
+            )
           ) : (
             <motion.button 
               className="btn-primary flex items-center gap-2 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -238,9 +297,10 @@ export default function Activities() {
             <motion.button 
               className="px-4 py-2 bg-gradient-to-r from-green-100 to-blue-100 text-green-700 rounded-xl border border-green-200 hover:from-green-200 hover:to-blue-200 transition-all text-sm font-medium flex items-center gap-2"
               onClick={() => {
+                const activityCalories = getActivityOnlyCalories(googleFitData.calories, googleFitData.steps)
                 setForm({ 
-                  caloriesBurned: googleFitData.calories, 
-                  notes: `بيانات من Google Fit - ${googleFitData.steps} خطوة، ${(googleFitData.distance / 1000).toFixed(1)} كم`
+                  caloriesBurned: activityCalories, 
+                  notes: `بيانات من Google Fit - ${googleFitData.steps} خطوة، ${(googleFitData.distance / 1000).toFixed(1)} كم (نشاط فقط، بدون BMR)`
                 })
                 setShowForm(true)
               }}
@@ -248,7 +308,7 @@ export default function Activities() {
               whileTap={{ scale: 0.98 }}
             >
               <Smartphone className="w-4 h-4" />
-              {googleFitData.calories} سعرة من Google Fit
+              {getActivityOnlyCalories(googleFitData.calories, googleFitData.steps)} سعرة نشاط
             </motion.button>
           )}
         </div>
@@ -515,8 +575,9 @@ export default function Activities() {
                         </div>
                         <div className="grid grid-cols-3 gap-4 text-sm">
                           <div className="text-center">
-                            <div className="font-bold text-red-600">{googleFitData.calories}</div>
-                            <div className="text-gray-500">سعرة</div>
+                            <div className="font-bold text-red-600">{getActivityOnlyCalories(googleFitData.calories, googleFitData.steps)}</div>
+                            <div className="text-gray-500">سعرة نشاط</div>
+                            <div className="text-xs text-gray-400">من أصل {googleFitData.calories}</div>
                           </div>
                           <div className="text-center">
                             <div className="font-bold text-blue-600">{googleFitData.steps}</div>
@@ -556,34 +617,35 @@ export default function Activities() {
                         <label className="block text-sm font-semibold text-slate-700 mb-3 text-center">
                           إجمالي السعرات المحروقة
                         </label>
-                        <input 
-                          className="input w-full border-2 border-red-300 focus:border-red-500 focus:ring-red-200 text-center font-bold text-2xl py-4" 
-                          type="number" 
-                          min="1" 
+                        <input
+                          type="number"
+                          value={form.caloriesBurned}
+                          onChange={(e) => setForm(prev => ({ ...prev, caloriesBurned: parseInt(e.target.value) || 0 }))}
+                          className={`w-full text-center text-4xl font-bold bg-transparent border-none outline-none text-slate-800 placeholder-slate-400 ${
+                            (dailyEntry?.isFromGoogleFit || (isGoogleFitConnected && googleFitData)) ? 'cursor-not-allowed opacity-70' : ''
+                          }`}
+                          placeholder="0"
+                          min="0"
                           max="5000"
-                          placeholder="400"
-                          value={form.caloriesBurned || ''} 
-                          onChange={e => setForm({ ...form, caloriesBurned: parseInt(e.target.value) || 0 })} 
                           required
+                          readOnly={dailyEntry?.isFromGoogleFit || (isGoogleFitConnected && googleFitData)}
                         />
-                        <div className="text-center mt-2">
-                          <span className="text-xs text-slate-500">سعرة حرارية</span>
-                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">ملاحظات (اختيارية)</label>
+                        <textarea
+                          rows="3"
+                          placeholder="أضف ملاحظات حول النشاط..."
+                          value={form.notes} 
+                          onChange={e => setForm({ ...form, notes: e.target.value })}
+                          className={`w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none ${
+                            (dailyEntry?.isFromGoogleFit || (isGoogleFitConnected && googleFitData)) ? 'cursor-not-allowed opacity-70 bg-gray-50' : ''
+                          }`}
+                          readOnly={dailyEntry?.isFromGoogleFit || (isGoogleFitConnected && googleFitData)}
+                        />
                       </div>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">ملاحظات (اختيارية)</label>
-                    <textarea 
-                      className="input w-full border-slate-300 focus:border-red-500 focus:ring-red-200" 
-                      rows="3"
-                      placeholder="أضف ملاحظات حول النشاط..."
-                      value={form.notes} 
-                      onChange={e => setForm({ ...form, notes: e.target.value })} 
-                    />
-                  </div>
-                </div>
                 
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
