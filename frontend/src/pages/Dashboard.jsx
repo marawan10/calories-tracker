@@ -12,7 +12,6 @@ import DonutChart from '../components/charts/DonutChart'
 import LoadingSkeleton from '../components/ui/LoadingSkeleton'
 import { SkeletonStats, SkeletonChart } from '../components/ui/EnhancedSkeleton'
 import { AnimatedCounter, ProgressRing } from '../components/ui/MicroInteractions'
-import GoogleFitIntegration from '../components/GoogleFitIntegration'
 
 export default function Dashboard() {
   const [today, setToday] = useState(() => toISODate(new Date()))
@@ -781,20 +780,6 @@ export default function Dashboard() {
         </div>
       </motion.div>
       
-      {/* Google Fit Integration Section */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.0 }}
-      >
-        <GoogleFitIntegration 
-          onDataSync={(data) => {
-            console.log('Google Fit data synced:', data)
-            // Refresh dashboard data after sync
-            setRefreshTrigger(prev => prev + 1)
-          }}
-        />
-      </motion.div>
     </motion.div>
   )
 }
