@@ -3,6 +3,12 @@
 
 A comprehensive, full-stack nutrition tracking platform designed to revolutionize how individuals monitor their dietary habits and achieve their health goals. Built with modern technologies and user-centric design principles, this application empowers users to make informed nutritional decisions through intelligent tracking, detailed analytics, and seamless user experience.
 
+## 🔒 Security & Production Ready
+✅ **Production Optimized**: All console.log statements removed, hardcoded credentials secured  
+✅ **Security Hardened**: Environment variables for sensitive data, secure authentication  
+✅ **Google Fit Verified**: Ready for Google OAuth verification and public access  
+✅ **Clean Codebase**: Unused files removed, imports optimized, error handling improved
+
 ## 🌟 Key Features & Benefits
 
 ### 🔐 **Secure User Authentication**
@@ -198,6 +204,155 @@ Before running this application, make sure you have the following installed:
    ```
 
 2. Configure the frontend environment variables as needed.
+
+## 🔗 Google Fit Integration Setup
+
+The application includes seamless Google Fit integration for automatic fitness data synchronization. Follow these steps to enable Google Fit connectivity:
+
+### Prerequisites
+- Google Cloud Console account
+- Google Fit API enabled
+- OAuth 2.0 credentials configured
+
+### Step 1: Google Cloud Console Setup
+
+1. **Create a Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Note your project ID for reference
+
+2. **Enable Google Fit API**
+   ```bash
+   # Navigate to APIs & Services > Library
+   # Search for "Fitness API" and enable it
+   ```
+
+3. **Create OAuth 2.0 Credentials**
+   - Go to APIs & Services > Credentials
+   - Click "Create Credentials" > "OAuth 2.0 Client ID"
+   - Configure the consent screen if prompted
+   - Select "Web application" as application type
+   - Add authorized origins:
+     - `http://localhost:5173` (development)
+     - `https://yourdomain.com` (production)
+   - Add authorized redirect URIs:
+     - `http://localhost:5173/auth/google/callback` (development)
+     - `https://yourdomain.com/auth/google/callback` (production)
+
+### Step 2: Frontend Environment Configuration
+
+Update your `frontend/.env` file with Google Fit credentials:
+
+```env
+# Google Fit Integration
+VITE_GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+VITE_GOOGLE_API_KEY=your_google_api_key_here
+
+# Optional: Google Fit Configuration
+VITE_GOOGLE_FIT_SCOPES=https://www.googleapis.com/auth/fitness.activity.read,https://www.googleapis.com/auth/fitness.body.read
+```
+
+### Step 3: Google API Key Setup
+
+1. **Create an API Key**
+   - In Google Cloud Console, go to APIs & Services > Credentials
+   - Click "Create Credentials" > "API Key"
+   - Copy the generated API key
+   - **Restrict the API key** (recommended):
+     - Click on the API key to edit
+     - Under "API restrictions", select "Restrict key"
+     - Choose "Fitness API" from the list
+
+### Step 4: OAuth Consent Screen Configuration
+
+1. **Configure Consent Screen**
+   - Go to APIs & Services > OAuth consent screen
+   - Choose "External" user type (for public apps)
+   - Fill in required information:
+     - App name: "Calories Tracker"
+     - User support email: your email
+     - Developer contact information: your email
+
+2. **Add Required Scopes**
+   - Click "Add or Remove Scopes"
+   - Add the following scopes:
+     - `https://www.googleapis.com/auth/fitness.activity.read`
+     - `https://www.googleapis.com/auth/fitness.body.read`
+     - `https://www.googleapis.com/auth/fitness.location.read`
+
+3. **Add Test Users** (for development)
+   - Add email addresses of users who will test the integration
+   - Note: Remove this step when publishing to production
+
+### Step 5: Verification for Production
+
+For production deployment, you'll need to verify your app:
+
+1. **Submit for Verification**
+   - Complete the OAuth consent screen with all required information
+   - Add privacy policy and terms of service URLs
+   - Submit for Google's review process
+
+2. **Domain Verification**
+   - Verify ownership of your domain
+   - Add your production URLs to authorized origins
+
+### Step 6: Testing the Integration
+
+1. **Development Testing**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   - Navigate to the Activities page (بيانات الساعة الذكية)
+   - Click "الاتصال بـ Google Fit" (Connect to Google Fit)
+   - Complete the OAuth flow
+   - Verify data synchronization
+
+2. **Debug Mode**
+   - The app includes a Google Fit debug component
+   - Check browser console for detailed logs
+   - Use the test functions in `utils/googleFitTest.js`
+
+### Features Enabled by Google Fit Integration
+
+✅ **Automatic Data Sync**: Steps, calories, distance, and heart rate  
+✅ **Real-time Updates**: Data refreshes every 30 minutes  
+✅ **Smart Form Population**: Activity forms auto-fill with Google Fit data  
+✅ **Connection Status**: Visual indicators for connection status  
+✅ **Quick Sync Button**: One-click data synchronization  
+✅ **Persistent Connection**: Maintains connection across sessions  
+
+### Troubleshooting Common Issues
+
+**Issue**: "Google Fit CLIENT_ID is not configured"
+- **Solution**: Ensure `VITE_GOOGLE_CLIENT_ID` is set in your `.env` file
+
+**Issue**: "OAuth error: redirect_uri_mismatch"
+- **Solution**: Verify redirect URIs in Google Cloud Console match your app URLs
+
+**Issue**: "Access blocked: This app's request is invalid"
+- **Solution**: Complete OAuth consent screen configuration and add test users
+
+**Issue**: "API key not valid"
+- **Solution**: Check API key restrictions and ensure Fitness API is enabled
+
+### Security Best Practices
+
+🔒 **Environment Variables**: Never commit API keys to version control  
+🔒 **API Key Restrictions**: Always restrict API keys to specific APIs and domains  
+🔒 **HTTPS Only**: Use HTTPS in production for secure OAuth flows  
+🔒 **Token Storage**: Tokens are stored securely in browser localStorage  
+🔒 **Scope Limitation**: Request only necessary permissions from users  
+
+### Data Privacy & Compliance
+
+- **User Consent**: Users must explicitly consent to Google Fit access
+- **Data Minimization**: Only necessary fitness data is accessed
+- **Secure Storage**: All tokens and data are handled securely
+- **User Control**: Users can disconnect Google Fit at any time
+
+For detailed setup instructions, see [GOOGLE_FIT_SETUP.md](GOOGLE_FIT_SETUP.md)
 
 ## Running the Application
 
