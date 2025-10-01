@@ -144,10 +144,12 @@ class GoogleFitService {
 
           if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
             this.accessToken = event.data.access_token;
+            this.tokenExpiry = Date.now() + (3600 * 1000); // Assume 1 hour expiry
             this.isSignedIn = true;
             window.removeEventListener('message', messageListener);
             popup.close();
             console.log('Successfully signed in to Google Fit');
+            console.log('Access token received:', this.accessToken ? 'Yes' : 'No');
             resolve(true);
           } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
             window.removeEventListener('message', messageListener);
@@ -213,7 +215,15 @@ class GoogleFitService {
 
   // Check if user is signed in
   isUserSignedIn() {
-    return this.isInitialized && this.isSignedIn;
+    return this.isInitialized && this.isSignedIn && this.accessToken && this.isTokenValid();
+  }
+
+  // Check if access token is still valid
+  isTokenValid() {
+    if (!this.accessToken || !this.tokenExpiry) {
+      return false;
+    }
+    return Date.now() < this.tokenExpiry;
   }
 
   // Get fitness data for a date range
@@ -222,27 +232,63 @@ class GoogleFitService {
       throw new Error('User not signed in to Google Fit');
     }
 
+    if (!this.accessToken) {
+      throw new Error('No access token available');
+    }
+
     const startTimeMillis = new Date(startDate).getTime();
     const endTimeMillis = new Date(endDate).getTime();
 
     try {
-      // Get aggregated data for the date range
-      const response = await this.gapi.client.fitness.users.dataset.aggregate({
-        userId: 'me',
-        resource: {
-          aggregateBy: [
-            { dataTypeName: this.dataTypes.CALORIES_EXPENDED },
-            { dataTypeName: this.dataTypes.STEP_COUNT_DELTA },
-            { dataTypeName: this.dataTypes.DISTANCE_DELTA },
-            { dataTypeName: this.dataTypes.HEART_RATE_BPM }
-          ],
-          bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
-          startTimeMillis: startTimeMillis,
-          endTimeMillis: endTimeMillis
-        }
+      console.log('Making fitness data request with token:', this.accessToken ? 'Present' : 'Missing');
+      console.log('Token validity:', this.isTokenValid());
+      console.log('Request timeframe:', new Date(startTimeMillis), 'to', new Date(endTimeMillis));
+      
+      // Use direct fetch with proper headers
+      const requestBody = {
+        aggregateBy: [
+          { dataTypeName: this.dataTypes.CALORIES_EXPENDED },
+          { dataTypeName: this.dataTypes.STEP_COUNT_DELTA },
+          { dataTypeName: this.dataTypes.DISTANCE_DELTA },
+          { dataTypeName: this.dataTypes.HEART_RATE_BPM }
+        ],
+        bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
+        startTimeMillis: startTimeMillis,
+        endTimeMillis: endTimeMillis
+      };
+      
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+      
+      const response = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
       });
 
-      return this.processFitnessData(response.result);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Google Fit API Error Response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { error: { message: errorText } };
+        }
+        
+        throw new Error(`API Error: ${response.status} - ${errorData.error?.message || errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('API Response:', result);
+      return this.processFitnessData(result);
     } catch (error) {
       console.error('Error fetching fitness data:', error);
       throw error;
@@ -251,13 +297,16 @@ class GoogleFitService {
 
   // Process raw fitness data into usable format
   processFitnessData(rawData) {
+    console.log('Processing raw fitness data:', rawData);
     const processedData = [];
 
-    if (!rawData.bucket) {
+    if (!rawData.bucket || !Array.isArray(rawData.bucket)) {
+      console.log('No bucket data found in response');
       return processedData;
     }
 
-    rawData.bucket.forEach(bucket => {
+    rawData.bucket.forEach((bucket, bucketIndex) => {
+      console.log(`Processing bucket ${bucketIndex}:`, bucket);
       const startTime = new Date(parseInt(bucket.startTimeMillis));
       const date = startTime.toISOString().split('T')[0];
 
@@ -273,69 +322,84 @@ class GoogleFitService {
         }
       };
 
-      bucket.dataset.forEach(dataset => {
-        dataset.point.forEach(point => {
-          switch (dataset.dataSourceId.split(':')[0]) {
-            case this.dataTypes.CALORIES_EXPENDED:
-              if (point.value && point.value[0]) {
-                dayData.calories += point.value[0].fpVal || 0;
-              }
-              break;
-            
-            case this.dataTypes.STEP_COUNT_DELTA:
-              if (point.value && point.value[0]) {
-                dayData.steps += point.value[0].intVal || 0;
-              }
-              break;
-            
-            case this.dataTypes.DISTANCE_DELTA:
-              if (point.value && point.value[0]) {
-                dayData.distance += point.value[0].fpVal || 0;
-              }
-              break;
-            
-            case this.dataTypes.HEART_RATE_BPM:
-              if (point.value && point.value[0]) {
-                const heartRate = point.value[0].fpVal || 0;
-                if (heartRate > 0) {
-                  dayData.heartRate.average = heartRate;
-                  dayData.heartRate.min = Math.min(dayData.heartRate.min || heartRate, heartRate);
-                  dayData.heartRate.max = Math.max(dayData.heartRate.max, heartRate);
+      if (bucket.dataset && Array.isArray(bucket.dataset)) {
+        bucket.dataset.forEach((dataset, datasetIndex) => {
+          console.log(`Processing dataset ${datasetIndex}:`, dataset);
+          
+          if (dataset.point && Array.isArray(dataset.point)) {
+            dataset.point.forEach((point, pointIndex) => {
+              console.log(`Processing point ${pointIndex}:`, point);
+              
+              // Check dataSourceId or dataTypeName
+              const dataType = dataset.dataSourceId || dataset.dataTypeName || '';
+              
+              if (dataType.includes('calories.expended')) {
+                if (point.value && point.value[0]) {
+                  dayData.calories += point.value[0].fpVal || 0;
+                }
+              } else if (dataType.includes('step_count.delta')) {
+                if (point.value && point.value[0]) {
+                  dayData.steps += point.value[0].intVal || 0;
+                }
+              } else if (dataType.includes('distance.delta')) {
+                if (point.value && point.value[0]) {
+                  dayData.distance += point.value[0].fpVal || 0;
+                }
+              } else if (dataType.includes('heart_rate.bpm')) {
+                if (point.value && point.value[0]) {
+                  const heartRate = point.value[0].fpVal || 0;
+                  if (heartRate > 0) {
+                    dayData.heartRate.average = heartRate;
+                    dayData.heartRate.min = Math.min(dayData.heartRate.min || heartRate, heartRate);
+                    dayData.heartRate.max = Math.max(dayData.heartRate.max, heartRate);
+                  }
                 }
               }
-              break;
+            });
           }
         });
-      });
+      }
 
       // Round values
       dayData.calories = Math.round(dayData.calories);
       dayData.distance = Math.round(dayData.distance); // meters
       dayData.heartRate.average = Math.round(dayData.heartRate.average);
 
+      console.log('Processed day data:', dayData);
       processedData.push(dayData);
     });
 
+    console.log('Final processed data:', processedData);
     return processedData;
   }
 
   // Get today's fitness summary
   async getTodaysSummary() {
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(today);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    const data = await this.getFitnessData(startOfDay, endOfDay);
-    return data.length > 0 ? data[0] : {
-      date: today.toISOString().split('T')[0],
-      calories: 0,
-      steps: 0,
-      distance: 0,
-      heartRate: { average: 0, min: 0, max: 0 }
-    };
+      console.log('Fetching today\'s data from:', startOfDay, 'to:', endOfDay);
+      const data = await this.getFitnessData(startOfDay, endOfDay);
+      
+      const todaysData = data.length > 0 ? data[0] : {
+        date: today.toISOString().split('T')[0],
+        calories: 0,
+        steps: 0,
+        distance: 0,
+        heartRate: { average: 0, min: 0, max: 0 }
+      };
+      
+      console.log('Today\'s fitness data:', todaysData);
+      return todaysData;
+    } catch (error) {
+      console.error('Error in getTodaysSummary:', error);
+      throw error;
+    }
   }
 
   // Get body measurements (weight, height)
