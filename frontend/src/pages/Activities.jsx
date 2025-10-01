@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Search, Plus, X, Activity, Clock, Flame, Edit, Trash2, Calendar, TrendingUp, Zap } from 'lucide-react'
+import { Search, Plus, X, Activity, Clock, Flame, Edit, Trash2, Calendar, TrendingUp, Zap, Smartphone } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { toISODate } from '../utils/date'
 import { formatNutrition } from '../utils/formatNumber'
 import GoogleFitDebug from '../components/GoogleFitDebug'
+import GoogleFitIntegration from '../components/GoogleFitIntegration'
 
 export default function Activities() {
   const [date, setDate] = useState(() => toISODate(new Date()))
@@ -19,6 +20,8 @@ export default function Activities() {
     caloriesBurned: 0,
     notes: ''
   })
+  const [googleFitData, setGoogleFitData] = useState(null)
+  const [isGoogleFitConnected, setIsGoogleFitConnected] = useState(false)
 
   // Check if there's already an entry for the selected date
   const dailyEntry = useMemo(() => {
@@ -52,6 +55,26 @@ export default function Activities() {
 
   useEffect(() => { fetchActivities() }, [date])
   useEffect(() => { fetchPredefinedActivities() }, [])
+
+  // Handle Google Fit data sync
+  const handleGoogleFitDataSync = (fitData) => {
+    console.log('Google Fit data received:', fitData)
+    setGoogleFitData(fitData)
+    
+    // Auto-populate form with Google Fit data if available
+    if (fitData && fitData.calories > 0) {
+      setForm(prev => ({
+        ...prev,
+        caloriesBurned: fitData.calories,
+        notes: `بيانات من Google Fit - ${fitData.steps} خطوة، ${(fitData.distance / 1000).toFixed(1)} كم`
+      }))
+    }
+  }
+
+  // Handle Google Fit connection status
+  const handleGoogleFitConnection = (connected) => {
+    setIsGoogleFitConnected(connected)
+  }
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -153,22 +176,31 @@ export default function Activities() {
         transition={{ delay: 0.1 }}
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-            <Activity className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <Smartphone className="w-6 h-6 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold gradient-text">بيانات الساعة الذكية</h1>
               <motion.span 
-                className="px-3 py-1 bg-gradient-to-r from-orange-100 to-red-100 text-orange-600 text-xs font-medium rounded-full border border-orange-200"
+                className={`px-3 py-1 text-xs font-medium rounded-full border ${
+                  isGoogleFitConnected 
+                    ? 'bg-gradient-to-r from-green-100 to-blue-100 text-green-600 border-green-200'
+                    : 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-600 border-orange-200'
+                }`}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: "spring" }}
               >
-                نسخة تجريبية
+                {isGoogleFitConnected ? 'متصل بـ Google Fit' : 'غير متصل'}
               </motion.span>
             </div>
-            <p className="text-slate-500 mt-1">تتبع السعرات المحروقة من الأنشطة والتمارين اليومية</p>
+            <p className="text-slate-500 mt-1">
+              {isGoogleFitConnected 
+                ? 'مزامنة تلقائية مع Google Fit للحصول على بيانات دقيقة'
+                : 'اتصل بـ Google Fit للحصول على بيانات تلقائية من ساعتك الذكية'
+              }
+            </p>
           </div>
         </div>
         <div className="flex gap-3">
@@ -201,32 +233,23 @@ export default function Activities() {
             </motion.button>
           )}
           
-          {/* Quick Add Buttons - only show if no entry exists */}
-          {!hasEntryForToday && (
-            <div className="hidden md:flex gap-2">
-              <motion.button 
-                className="px-4 py-2 bg-green-100 text-green-700 rounded-xl border border-green-200 hover:bg-green-200 transition-colors text-sm font-medium"
-                onClick={() => {
-                  setForm({ caloriesBurned: 200, notes: 'مشي خفيف' })
-                  setShowForm(true)
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                200 سعرة
-              </motion.button>
-              <motion.button 
-                className="px-4 py-2 bg-orange-100 text-orange-700 rounded-xl border border-orange-200 hover:bg-orange-200 transition-colors text-sm font-medium"
-                onClick={() => {
-                  setForm({ caloriesBurned: 400, notes: 'تمرين متوسط' })
-                  setShowForm(true)
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                400 سعرة
-              </motion.button>
-            </div>
+          {/* Google Fit Quick Sync - only show if connected and no entry exists */}
+          {!hasEntryForToday && isGoogleFitConnected && googleFitData && (
+            <motion.button 
+              className="px-4 py-2 bg-gradient-to-r from-green-100 to-blue-100 text-green-700 rounded-xl border border-green-200 hover:from-green-200 hover:to-blue-200 transition-all text-sm font-medium flex items-center gap-2"
+              onClick={() => {
+                setForm({ 
+                  caloriesBurned: googleFitData.calories, 
+                  notes: `بيانات من Google Fit - ${googleFitData.steps} خطوة، ${(googleFitData.distance / 1000).toFixed(1)} كم`
+                })
+                setShowForm(true)
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Smartphone className="w-4 h-4" />
+              {googleFitData.calories} سعرة من Google Fit
+            </motion.button>
           )}
         </div>
       </motion.div>
@@ -270,6 +293,12 @@ export default function Activities() {
           </div>
         </div>
       </div>
+
+      {/* Google Fit Integration */}
+      <GoogleFitIntegration 
+        onDataSync={handleGoogleFitDataSync}
+        onConnectionChange={handleGoogleFitConnection}
+      />
 
       {loading ? (
         <motion.div className="flex flex-col items-center justify-center py-16">
@@ -450,30 +479,66 @@ export default function Activities() {
               <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                  {/* Beta Notice */}
+                  {/* Google Fit Status Notice */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200"
+                    className={`p-6 rounded-xl border ${
+                      isGoogleFitConnected 
+                        ? 'bg-gradient-to-r from-green-50 to-blue-50 border-green-200'
+                        : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+                    }`}
                   >
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                        <Activity className="w-4 h-4 text-white" />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isGoogleFitConnected ? 'bg-green-500' : 'bg-orange-500'
+                      }`}>
+                        <Smartphone className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-800">نسخة تجريبية - إدخال يدوي</h3>
-                        <p className="text-sm text-slate-600">في المستقبل سيتم الربط التلقائي مع Google Fit API</p>
+                        <h3 className="font-semibold text-slate-800">
+                          {isGoogleFitConnected ? 'متصل بـ Google Fit' : 'إدخال يدوي'}
+                        </h3>
+                        <p className="text-sm text-slate-600">
+                          {isGoogleFitConnected 
+                            ? 'البيانات محدثة تلقائياً من Google Fit'
+                            : 'اتصل بـ Google Fit للحصول على بيانات تلقائية'
+                          }
+                        </p>
                       </div>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border border-orange-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Flame className="w-4 h-4 text-orange-600" />
-                        <span className="font-medium text-slate-700">كيفية الاستخدام:</span>
+                    {isGoogleFitConnected && googleFitData ? (
+                      <div className="bg-white p-4 rounded-lg border border-green-100">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Flame className="w-4 h-4 text-green-600" />
+                          <span className="font-medium text-slate-700">بيانات اليوم من Google Fit:</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div className="text-center">
+                            <div className="font-bold text-red-600">{googleFitData.calories}</div>
+                            <div className="text-gray-500">سعرة</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-bold text-blue-600">{googleFitData.steps}</div>
+                            <div className="text-gray-500">خطوة</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-bold text-green-600">{(googleFitData.distance / 1000).toFixed(1)}</div>
+                            <div className="text-gray-500">كم</div>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-600">
-                        ببساطة أدخل إجمالي السعرات المحروقة التي تظهر على ساعتك الذكية (مثل: 400 سعرة حرارية)
-                      </p>
-                    </div>
+                    ) : !isGoogleFitConnected && (
+                      <div className="bg-white p-4 rounded-lg border border-orange-100">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Flame className="w-4 h-4 text-orange-600" />
+                          <span className="font-medium text-slate-700">كيفية الاستخدام:</span>
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          أدخل إجمالي السعرات المحروقة يدوياً أو اتصل بـ Google Fit للحصول على البيانات تلقائياً
+                        </p>
+                      </div>
+                    )}
                   </motion.div>
 
                   {/* Ultra Simple Form - Just Calories */}
