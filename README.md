@@ -626,7 +626,7 @@ npm test
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**.
 
 ### What this means:
 - ✅ **Commercial use** - Use in commercial projects
@@ -648,12 +648,12 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### Contact
 
 - 📧 **Email**: [marawanmokhtar10@gmail.com](mailto:marawanmokhtar10@gmail.com)
-- 🐙 **GitHub**: [@yourusername](https://github.com/yourusername)
+- 🐙 **GitHub**: [@yourusername](https://github.com/marawan10)
 
 ---
 
 <div align="center">
-  <p><strong>Built with ❤️ for better health tracking</strong></p>
+  <p><strong></strong></p>
   
   <p>
     <a href="#-table-of-contents">Back to Top</a> •
