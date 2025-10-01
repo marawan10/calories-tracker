@@ -608,8 +608,8 @@ export default function AdminUsers() {
                 </div>
 
                 {/* Enhanced Profile Information */}
-                {selectedUser.user.profile && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {selectedUser.user.profile && (
                     <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
                       <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -645,30 +645,36 @@ export default function AdminUsers() {
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
-                  <div className="space-y-3">
-                    <h5 className="font-semibold text-slate-700">إحصائيات النشاط</h5>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">إجمالي الوجبات:</span>
-                      <span className="text-slate-800">{selectedUser.activity.totalMeals}</span>
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-white" />
+                      </div>
+                      <h5 className="text-lg font-bold text-slate-800">إحصائيات النشاط</h5>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">الأطعمة المضافة:</span>
-                      <span className="text-slate-800">{selectedUser.activity.totalFoods}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">وجبات حديثة:</span>
-                      <span className="text-slate-800">{selectedUser.activity.recentMeals}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">آخر نشاط:</span>
-                      <span className="text-slate-800">{formatRelativeTime(selectedUser.activity.lastActive)}</span>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">إجمالي الوجبات:</span>
+                        <span className="text-slate-800">{selectedUser.activity.totalMeals}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">الأطعمة المضافة:</span>
+                        <span className="text-slate-800">{selectedUser.activity.totalFoods}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">وجبات حديثة:</span>
+                        <span className="text-slate-800">{selectedUser.activity.recentMeals}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">آخر نشاط:</span>
+                        <span className="text-slate-800">{formatRelativeTime(selectedUser.activity.lastActive)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
 
               {/* Recent Meals */}
               {selectedUser.recentMeals && selectedUser.recentMeals.length > 0 && (
@@ -703,8 +709,8 @@ export default function AdminUsers() {
                   </div>
                 </div>
               </div>
+              </div>
             </div>
-          </div>
           </motion.div>
         </div>
       )}
