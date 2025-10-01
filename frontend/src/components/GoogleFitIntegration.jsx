@@ -15,6 +15,7 @@ import {
 import googleFitService from '../services/googleFit';
 import { GOOGLE_FIT_CONFIG } from '../config/googleFit';
 import api from '../lib/api';
+import { testGoogleFitConfig, testGoogleFitAPI } from '../utils/googleFitTest';
 
 const GoogleFitIntegration = ({ onDataSync }) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -33,6 +34,13 @@ const GoogleFitIntegration = ({ onDataSync }) => {
     try {
       setIsLoading(true);
       
+      // Test configuration first
+      const configValid = testGoogleFitConfig();
+      if (!configValid) {
+        setError('إعدادات Google Fit غير صحيحة. تحقق من متغيرات البيئة.');
+        return;
+      }
+      
       // Debug logging
       console.log('Google Fit Config:', {
         CLIENT_ID: GOOGLE_FIT_CONFIG.CLIENT_ID,
@@ -49,7 +57,7 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       }
     } catch (error) {
       console.error('Failed to initialize Google Fit:', error);
-      setError('فشل في تهيئة Google Fit. تحقق من إعدادات API.');
+      setError(`فشل في تهيئة Google Fit: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -67,8 +75,15 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       setIsLoading(true);
       setError(null);
       
+      console.log('Attempting to sign in to Google Fit...');
       await googleFitService.signIn();
       setIsConnected(true);
+      
+      // Test API access after successful sign-in
+      if (googleFitService.accessToken) {
+        console.log('Testing API access with token...');
+        await testGoogleFitAPI(googleFitService.accessToken);
+      }
       
       // Load today's data after connecting
       await loadTodaysFitData();
@@ -78,7 +93,7 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       
     } catch (error) {
       console.error('Failed to connect to Google Fit:', error);
-      setError('فشل في الاتصال بـ Google Fit. حاول مرة أخرى.');
+      setError(`فشل في الاتصال بـ Google Fit: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -106,12 +121,14 @@ const GoogleFitIntegration = ({ onDataSync }) => {
 
   const loadTodaysFitData = async () => {
     try {
+      console.log('Loading today\'s fit data...');
       const todaysData = await googleFitService.getTodaysSummary();
+      console.log('Received today\'s data:', todaysData);
       setFitData(todaysData);
       return todaysData;
     } catch (error) {
       console.error('Failed to load today\'s fit data:', error);
-      setError('فشل في تحميل بيانات اليوم من Google Fit.');
+      setError(`فشل في تحميل بيانات اليوم من Google Fit: ${error.message}`);
       return null;
     }
   };
