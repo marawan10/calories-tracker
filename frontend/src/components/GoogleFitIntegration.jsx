@@ -17,7 +17,7 @@ import { GOOGLE_FIT_CONFIG } from '../config/googleFit';
 import api from '../lib/api';
 import { testGoogleFitConfig, testGoogleFitAPI } from '../utils/googleFitTest';
 
-const GoogleFitIntegration = ({ onDataSync }) => {
+const GoogleFitIntegration = ({ onDataSync, onConnectionChange }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,6 +29,37 @@ const GoogleFitIntegration = ({ onDataSync }) => {
     initializeGoogleFit();
     loadLastSyncTime();
   }, []);
+
+  // Auto-sync data every 30 minutes if connected
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const autoSyncInterval = setInterval(async () => {
+      try {
+        console.log('🔄 Auto-syncing Google Fit data...');
+        await loadTodaysFitData();
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+      }
+    }, 30 * 60 * 1000); // 30 minutes
+
+    return () => clearInterval(autoSyncInterval);
+  }, [isConnected]);
+
+  // Sync data when page becomes visible (user returns to tab)
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('🔄 Page visible - syncing Google Fit data...');
+        await loadTodaysFitData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isConnected]);
 
   const initializeGoogleFit = async () => {
     try {
@@ -49,11 +80,22 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       });
       
       await googleFitService.init(GOOGLE_FIT_CONFIG.CLIENT_ID, GOOGLE_FIT_CONFIG.API_KEY);
-      setIsConnected(googleFitService.isUserSignedIn());
+      
+      // Check if already connected from stored token
+      const isAlreadyConnected = googleFitService.isUserSignedIn();
+      setIsConnected(isAlreadyConnected);
       setIsInitialized(true);
       
-      if (googleFitService.isUserSignedIn()) {
+      // Notify parent component about connection status
+      if (onConnectionChange) {
+        onConnectionChange(isAlreadyConnected);
+      }
+      
+      if (isAlreadyConnected) {
+        console.log('✅ Already connected to Google Fit from stored token');
         await loadTodaysFitData();
+      } else {
+        console.log('ℹ️ Not connected to Google Fit - user needs to sign in');
       }
     } catch (error) {
       console.error('Failed to initialize Google Fit:', error);
@@ -78,6 +120,11 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       console.log('Attempting to sign in to Google Fit...');
       await googleFitService.signIn();
       setIsConnected(true);
+      
+      // Notify parent component about connection status
+      if (onConnectionChange) {
+        onConnectionChange(true);
+      }
       
       // Test API access after successful sign-in
       if (googleFitService.accessToken) {
@@ -107,6 +154,11 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       setIsConnected(false);
       setFitData(null);
       
+      // Notify parent component about connection status
+      if (onConnectionChange) {
+        onConnectionChange(false);
+      }
+      
       // Clear stored data
       localStorage.removeItem('googleFit_connected');
       localStorage.removeItem('googleFit_lastSync');
@@ -122,13 +174,38 @@ const GoogleFitIntegration = ({ onDataSync }) => {
   const loadTodaysFitData = async () => {
     try {
       console.log('Loading today\'s fit data...');
+      
+      // Check if token is still valid
+      if (!googleFitService.isTokenValid()) {
+        console.log('Token expired, need to reconnect');
+        setIsConnected(false);
+        setError('انتهت صلاحية الاتصال بـ Google Fit. يرجى إعادة الاتصال.');
+        return null;
+      }
+      
       const todaysData = await googleFitService.getTodaysSummary();
       console.log('Received today\'s data:', todaysData);
       setFitData(todaysData);
+      setError(null); // Clear any previous errors
+      
+      // Notify parent component with new data
+      if (onDataSync && todaysData) {
+        onDataSync(todaysData);
+      }
+      
       return todaysData;
     } catch (error) {
       console.error('Failed to load today\'s fit data:', error);
-      setError(`فشل في تحميل بيانات اليوم من Google Fit: ${error.message}`);
+      
+      // If it's a 401 error, the token might be invalid
+      if (error.message.includes('401')) {
+        console.log('401 error - token might be invalid, disconnecting');
+        setIsConnected(false);
+        googleFitService.clearStoredToken();
+        setError('انتهت صلاحية الاتصال بـ Google Fit. يرجى إعادة الاتصال.');
+      } else {
+        setError(`فشل في تحميل بيانات اليوم من Google Fit: ${error.message}`);
+      }
       return null;
     }
   };
@@ -215,7 +292,7 @@ const GoogleFitIntegration = ({ onDataSync }) => {
           {isConnected ? (
             <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
               <CheckCircle className="w-4 h-4" />
-              <span>متصل</span>
+              <span>متصل تلقائياً</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
@@ -342,11 +419,21 @@ const GoogleFitIntegration = ({ onDataSync }) => {
       )}
 
       {/* Last Sync Info */}
-      {lastSync && (
+      {(lastSync || isConnected) && (
         <div className="mt-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>آخر مزامنة:</span>
-            <span>{lastSync.toLocaleString('ar-EG')}</span>
+          <div className="space-y-2 text-sm text-slate-500">
+            {lastSync && (
+              <div className="flex items-center justify-between">
+                <span>آخر مزامنة:</span>
+                <span>{lastSync.toLocaleString('ar-EG')}</span>
+              </div>
+            )}
+            {isConnected && (
+              <div className="flex items-center justify-between">
+                <span>المزامنة التلقائية:</span>
+                <span className="text-green-600 font-medium">مفعلة (كل 30 دقيقة)</span>
+              </div>
+            )}
           </div>
         </div>
       )}
