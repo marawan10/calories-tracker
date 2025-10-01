@@ -5,6 +5,7 @@ import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { toISODate } from '../utils/date'
 import { formatNutrition } from '../utils/formatNumber'
+import GoogleFitDebug from '../components/GoogleFitDebug'
 
 export default function Activities() {
   const [date, setDate] = useState(() => toISODate(new Date()))
@@ -229,6 +230,9 @@ export default function Activities() {
           )}
         </div>
       </motion.div>
+
+      {/* Google Fit Debug Panel - Only show in development */}
+      {import.meta.env.DEV && <GoogleFitDebug />}
 
       {/* Date Selector */}
       <div className="card p-6 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100">
