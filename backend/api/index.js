@@ -974,6 +974,120 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Activities: Get a specific activity by ID
+    if (method === 'GET' && path.startsWith('/api/activities/')) {
+      // Ignore sub-routes handled above like /predefined or /stats/summary
+      if (path === '/api/activities/predefined' || path === '/api/activities/stats/summary') {
+        // fall through to their handlers above
+      } else {
+        const activityId = path.split('/')[3];
+        if (!activityId) {
+          return res.status(400).json({ message: 'Activity ID is required' });
+        }
+
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ message: 'No token provided' });
+        }
+
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+          const user = await User.findById(decoded.userId);
+          if (!user) {
+            return res.status(401).json({ message: 'Invalid token' });
+          }
+
+          const activity = await Activity.findOne({ _id: activityId, user: user._id });
+          if (!activity) {
+            return res.status(404).json({ message: 'Activity not found' });
+          }
+
+          return res.json({ message: 'Activity retrieved successfully', activity });
+        } catch (error) {
+          console.error('GET /api/activities/:id error:', error);
+          return res.status(500).json({ message: 'Server error while fetching activity' });
+        }
+      }
+    }
+
+    // Activities: Update an activity by ID
+    if (method === 'PUT' && path.startsWith('/api/activities/')) {
+      const activityId = path.split('/')[3];
+      if (!activityId) {
+        return res.status(400).json({ message: 'Activity ID is required' });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+
+        const activity = await Activity.findOne({ _id: activityId, user: user._id });
+        if (!activity) {
+          return res.status(404).json({ message: 'Activity not found' });
+        }
+
+        const { name, nameAr, type, duration, intensity, metValue, date, notes, caloriesBurned } = req.body || {};
+
+        if (name !== undefined) activity.name = name;
+        if (nameAr !== undefined) activity.nameAr = nameAr;
+        if (type !== undefined) activity.type = type;
+        if (duration !== undefined) activity.duration = duration;
+        if (intensity !== undefined) activity.intensity = intensity;
+        if (metValue !== undefined) activity.metValue = metValue;
+        if (date !== undefined) activity.date = new Date(date);
+        if (notes !== undefined) activity.notes = notes;
+        if (caloriesBurned !== undefined) activity.caloriesBurned = parseInt(caloriesBurned, 10);
+
+        await activity.save();
+        return res.json({ message: 'Activity updated successfully', activity });
+      } catch (error) {
+        console.error('PUT /api/activities/:id error:', error);
+        return res.status(500).json({ message: 'Server error while updating activity' });
+      }
+    }
+
+    // Activities: Delete an activity by ID
+    if (method === 'DELETE' && path.startsWith('/api/activities/')) {
+      const activityId = path.split('/')[3];
+      if (!activityId) {
+        return res.status(400).json({ message: 'Activity ID is required' });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+
+        const deleted = await Activity.findOneAndDelete({ _id: activityId, user: user._id });
+        if (!deleted) {
+          return res.status(404).json({ message: 'Activity not found' });
+        }
+
+        return res.json({ message: 'Activity deleted successfully' });
+      } catch (error) {
+        console.error('DELETE /api/activities/:id error:', error);
+        return res.status(500).json({ message: 'Server error while deleting activity' });
+      }
+    }
+
     // (stats/summary handler moved above)
     // Create Food endpoint
     if (method === 'POST' && path === '/api/foods') {
